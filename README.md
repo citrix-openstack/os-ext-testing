@@ -1,80 +1,59 @@
-# Example project-config repository
+Setting up the libvirt+xen CI
+=============================
 
-This is an example project-config repository for use as a
-starting point to setup a 3rd party CI account. It is expected that you
-fork this repository or otherwise copy it to your own repository. Any
-changes to this version are expected to remain within the scope of an
-'example' to help others get started. Refer to
-[openstack-infra/project-config](https://git.openstack.org/cgit/openstack-infra/project-config/)
-for a more complete production configuration.
+The instructions below were taken from http://docs.openstack.org/infra/openstackci/third_party_ci.html Feb 2016 which may have additional debugging suggestions if there are missing items
 
-# Steps to begin customization
+Steps to reinstall
+------------------
 
-The project-config repository is intended to contain custom configurations
-needed by each CI system.
+1. Log in to mycloud.rackspace.com using credentials from os-ext-data/single_node_ci_data.yaml - Search for 'username' and 'password' under the 'oscc_file_contents' setting
+  * Create new Ubuntu 14.04 server (copy password), hostname 'jenkins-libvirt'
+  * 7.5GB Compute v1 flavor
+  * Enable monitoring and security updates
+  * Save the password for use in step 2a
+  * Add key from os-ext-data/xenproject_jenkins.pub with the name 'xenproject-nodepool'
+2. Initial server setup:
+  * Disable password authentication on jenkins server
+    * ssh-copy-id to copy a key to the server
+    * edit /etc/sshd_config to set "PermitRootLogin without-password"
+    * service ssh restart
+  * Add a 8GB swap file:
+    * fallocate -l 8G /swapfile; chmod 600 /swapfile; mkswap /swapfile; swapon /swapfile
+    * echo "/swapfile   none    swap    sw    0   0" >> /etc/fstab
+3. Copy the secret credentials dir (http://hg.uk.xensource.com/openstack/infrastructure.hg/os-ext-data) to /root/os-ext-data
+4. Clone this repo:
+  * apt-get install git
+  * git clone https://github.com/citrix-openstack/os-ext-testing.git
+  * cd os-ext-testing
+5. Run install_master.sh to do the main part of the installation
+6. The jobs need an additional plugin in Jenkins to generate correctly, so:
+  * Install Post-Build Script jenkins plugin (including restarting Jenkins)
+  * Regenerate jenkins jobs: jenkins-jobs update --delete-old /etc/jenkins_jobs/config
+  * Enable HTML: Manage Jenkins -> Configure Global Security -> Markup Formatter -> Raw HTML
+7. Start the CI processes
+  * service zuul start; service zuul-merger start
+  * Wait for a bit, check there are 3 zuul processes (1 merger, 2 servers)
+  * service nodepool start
+  * Wait for a bit (5m); check an image is being built (su - nodepool; nodepool image-list)
+  * Wait for a lot (1h?); check a node is built (su - nodepool; nodepool list)
+  * Check http://<ip> and http://<ip>:8080 to check that zuul + jenkins (respectively) are running
+  * Enable gearman and ZMQ in Jenkins (Manage Jenkins --> Configure System) 
+8. Secure jenkins - instructions at end of http://docs.openstack.org/infra/openstackci/third_party_ci.html
+9. Set up monitoring checks https://intelligence.rackspace.com/
+10. The CI will be set up to run jobs on openstack-dev/ci-sandbox.  Check that jobs posted there will pass the CI
+  * Once jobs pass on the sandbox, enable dsvm-tempest-xen in the "silent" job (rather than check) by editing project-config/zuul/layout.yaml:
 
-## Customize Zuul
-
-The zuul layout configuration is located in `zuul/layout.yaml`. You can find
-the full configuration details in the [Zuul manual](http://docs.openstack.org/infra/zuul/).
-
-1. Change 'myvendor' in the 'recheck' command to your CI's name.
-
-2. Configure the e-mail addresses for merge-failures and job notification.
-
-3. By default, the project zuul triggers on is `openstack-dev/ci-sandbox`.
-   After testing your CI system update this section to include other projects.
-   You are encouraged to use the 'silent' pipeline until your jobs are stable.
-
-## Customize Nodepool
-
-The nodepool configuration is located in `nodepool/nodepool.yaml`. You can
-find the full configuration instructions in the [Nodepool manual](http://docs.openstack.org/infra/nodepool/).
-There are a few configuration that need to be updated.
-
-1. There are some user names and passwords that need to be configured.
-
-2. Select a 'random time' for your nodepool images to be built in the
-   `image-update` property. By having 3rd party systems use different
-   times will help reduce the spike load on OpenStack's Git servers.
-
-3. Setup an intial set of nodepool scripts and elements. Start by cloning
-   OpenStack's [project-config](https://git.openstack.org/cgit/openstack-infra/project-config/)
-   and copying the entire contents of that repo's `nodepool/elements` to your repo's
-   `nodepool/elements`. Optionally do the same for the `nodepool/scripts`
-   folder. You may have to change these elements to work in your environment.
-   If so, see this [README](http://git.openstack.org/cgit/openstack-infra/project-config/tree/nodepool/elements/README.rst)
-   for help.
-
-4. Update the nodepool/nodepool.yaml `diskimages` configuration to
-   match the elements you included in the previous step. If you included everything, the defaults
-   provide a good starting point. Otherwise, adjust them as needed as explained
-   in the [nodepool manual](http://docs.openstack.org/infra/nodepool/configuration.html#diskimages).
-
-## Customize Jenkins Jobs
-
-Adjust the jenkins jobs in `jenkins/jobs/` to your needs. You can find the full configuration details in the
-[Jenkins Job Builder manual](http://docs.openstack.org/infra/jenkins-job-builder/)
-
-1. Change the value of the `<your-log-server>` in project-config-example/jenkins/jobs/macros-common.yaml
-   to the host you will publish
-   job artifacts to. This is also known as the Log server. You can set one up using
-   [openstackci::logserver puppet class](https://git.openstack.org/cgit/openstack-infra/puppet-openstackci/tree/manifests/logserver.pp)
-
-## Basic checks
-
-Prerequisites: The following packages need to be installed for the `zuul` tox environment tests to pass:
-sudo apt-get install libxml2-dev libxslt1-dev  python-dev build-essential
-
-1. Run `tox` to run some basic syntax checks to validate the syntax of your configuration files.
-
-## Credits
-
-This repository is based on work created from the following sources:
-
-1. [openstack-infra/project-config](https://git.openstack.org/cgit/openstack-infra/project-config/)
-
-2. [rasselin/os-ext-testing-data](https://github.com/rasselin/os-ext-testing-data)
-
-3. [jaypipes/os-ext-testing-data](https://github.com/jaypipes/os-ext-testing-data)
-
+  ```
+  projects:
+    - name: openstack-dev/ci-sandbox
+       check:
+         - dsvm-tempest-xen
+    - name: openstack/nova
+       silent
+         - dsvm-tempest-xen
+  ```
+  * Change the email address in the silent job from openstack-ci@xenproject.org to one you can monitor
+  * sudo puppet apply --verbose /etc/puppet/manifests/site.pp
+  * Verify that the silent jobs are passing (through the emails)
+  * Modify the silent job on openstack/nova to be a check job
+  * sudo puppet apply --verbose /etc/puppet/manifests/site.pp
