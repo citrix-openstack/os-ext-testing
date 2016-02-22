@@ -3,6 +3,8 @@ Setting up the libvirt+xen CI
 
 The instructions below were taken from http://docs.openstack.org/infra/openstackci/third_party_ci.html Feb 2016 which may have additional debugging suggestions if there are missing items
 
+They depend on a secret credentials directory which currently only accessible by Citrix (os-ext-data).
+
 Steps to reinstall
 ------------------
 
@@ -20,7 +22,7 @@ Steps to reinstall
   * Add a 8GB swap file:
     * fallocate -l 8G /swapfile; chmod 600 /swapfile; mkswap /swapfile; swapon /swapfile
     * echo "/swapfile   none    swap    sw    0   0" >> /etc/fstab
-3. Copy the secret credentials dir (http://hg.uk.xensource.com/openstack/infrastructure.hg/os-ext-data) to /root/os-ext-data
+3. Copy the secret credentials dir to /root/os-ext-data
 4. Clone this repo:
   * apt-get install git
   * git clone https://github.com/citrix-openstack/os-ext-testing.git
