@@ -45,6 +45,9 @@ Steps to reinstall
 9. Set up monitoring checks https://intelligence.rackspace.com/
 10. The CI will be set up to run jobs on openstack-dev/ci-sandbox.  Check that jobs posted there will pass the CI
   * you can propose a change to openstack-dev/ci-sandbox and check if there is a comment on the patch from the CI loop
+  * Extra step to have zuul working and cloning repos:
+    * cp /root/os-ext-data/xenproject_gerrit ~zuul/.ssh/id_rsa
+    * echo "StrictHostKeyChecking no" >> ~zuul/.ssh/config
   * Once jobs pass on the sandbox, enable dsvm-tempest-xen in the "silent" job (rather than check) by editing /etc/project-config/zuul/layout.yaml:
 
   ```
