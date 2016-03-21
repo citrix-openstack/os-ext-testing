@@ -103,6 +103,9 @@
           virtualenv osci-env
           . osci-env/bin/activate
           git clone https://github.com/citrix-openstack/openstack-citrix-ci openstack-citrix-ci
+          # https://urllib3.readthedocs.org/en/latest/security.html#insecureplatformwarning
+          export PYTHONWARNINGS="ignore:A true SSLContext object is not"
+          echo export PYTHONWARNINGS="$PYTHONWARNINGS"
           pip install -r openstack-citrix-ci/requirements.txt
           pip install -e openstack-citrix-ci
           # CA bundle in 2.5.2 is broken
