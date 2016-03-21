@@ -29,7 +29,8 @@ Steps to reinstall
   * cd os-ext-testing
 5. Run install_master.sh to do the main part of the installation
 6. The jobs need an additional plugin in Jenkins to generate correctly, so:
-  * Install Post-Build Script jenkins plugin (including restarting Jenkins)
+  * Connect to Jenkins via http://<ip>:8080
+  * Install Post-Build Script jenkins plugin (including restarting Jenkins) via Manage Jenkins --> Manage Plugins --> Available
   * Regenerate jenkins jobs: jenkins-jobs update --delete-old /etc/jenkins_jobs/config
   * Enable HTML: Manage Jenkins -> Configure Global Security -> Markup Formatter -> Raw HTML
 7. Start the CI processes
