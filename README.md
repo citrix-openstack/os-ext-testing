@@ -29,7 +29,8 @@ Steps to reinstall
   * cd os-ext-testing
 5. Run install_master.sh to do the main part of the installation
 6. The jobs need an additional plugin in Jenkins to generate correctly, so:
-  * Install Post-Build Script jenkins plugin (including restarting Jenkins)
+  * Connect to Jenkins via http://<ip>:8080
+  * Install Post-Build Script jenkins plugin (including restarting Jenkins) via Manage Jenkins --> Manage Plugins --> Available
   * Regenerate jenkins jobs: jenkins-jobs update --delete-old /etc/jenkins_jobs/config
   * Enable HTML: Manage Jenkins -> Configure Global Security -> Markup Formatter -> Raw HTML
 7. Start the CI processes
@@ -43,7 +44,11 @@ Steps to reinstall
 8. Secure jenkins - instructions at end of http://docs.openstack.org/infra/openstackci/third_party_ci.html
 9. Set up monitoring checks https://intelligence.rackspace.com/
 10. The CI will be set up to run jobs on openstack-dev/ci-sandbox.  Check that jobs posted there will pass the CI
-  * Once jobs pass on the sandbox, enable dsvm-tempest-xen in the "silent" job (rather than check) by editing project-config/zuul/layout.yaml:
+  * you can propose a change to openstack-dev/ci-sandbox and check if there is a comment on the patch from the CI loop
+  * Extra step to have zuul working and cloning repos:
+    * cp /root/os-ext-data/xenproject_gerrit ~zuul/.ssh/id_rsa
+    * echo "StrictHostKeyChecking no" >> ~zuul/.ssh/config
+  * Once jobs pass on the sandbox, enable dsvm-tempest-xen in the "silent" job (rather than check) by editing /etc/project-config/zuul/layout.yaml:
 
   ```
   projects:
