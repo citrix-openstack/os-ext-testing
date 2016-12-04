@@ -88,17 +88,25 @@ DOMZERO_USER=domzero
 # directory to ramdisk.
 XSINST_DIRECTORY="/xsinst"
 
+# FLAG to indicate internal provider
+FLAG_FILE_INTERNAL=is_internal
+
+
 function main {
     case "$(get_state)" in
         "START")
+            sed -ie 's/^ - resizefs$//' /etc/cloud/cloud.cfg
+            sed -ie 's/^ - growpart$//' /etc/cloud/cloud.cfg
+            if [ $IS_INTERNAL -eq 1 ]; then
+                touch /root/$FLAG_FILE_INTERNAL
+            fi
             dump_disk_config
             run_this_script_on_each_boot
             download_xenserver_files /root/xenserver.iso
             download_appliance "$STAGING_APPLIANCE_URL"
             create_ramdisk_contents /root/xenserver.iso
             extract_xs_installer /root/xenserver.iso /opt/xs-install
-            generate_xs_installer_grub_config /opt/xs-install \
-                file:///tmp/ramdisk/answerfile.xml
+            generate_xs_installer_grub_config /opt/xs-install file:///tmp/ramdisk/answerfile.xml
             configure_grub
             update-grub
             create_resizing_initramfs_config
@@ -271,6 +279,8 @@ function create_ramdisk_contents {
     isofile="$1"
     target_dir="$XSINST_DIRECTORY"
 
+    # met a failure mkdir failed due to "File exists"
+    [ -e $target_dir ] && ls -l $target_dir && rm -rf $target_dir
     mkdir "$target_dir"
     ln "$isofile" "$target_dir/xenserver.iso"
     print_rclocal > "$target_dir/rclocal"
@@ -312,7 +322,7 @@ function generate_xs_installer_grub_config {
 #!/bin/sh
 exec tail -n +3 \$0
 menuentry 'XenServer installer' {
-    multiboot $bootfiles/xen.gz dom0_max_vcpus=1-2 dom0_mem=max:752M com1=115200,8n1 console=com1,vga
+    multiboot $bootfiles/xen.gz dom0_max_vcpus=1-2 dom0_mem=1024M dom0_mem=max:1024M com1=115200,8n1 console=com1,vga
     module $bootfiles/vmlinuz xencons=hvc console=tty0 make-ramdisk=/dev/sda1 answerfile=$answerfile install
     module $bootfiles/install.img
 }
@@ -322,8 +332,7 @@ EOF
 
 function configure_grub {
     sed -ie 's/^GRUB_HIDDEN_TIMEOUT/#GRUB_HIDDEN_TIMEOUT/g' /etc/default/grub
-    sed -ie 's/^GRUB_HIDDEN_TIMEOUT_QUIET/#GRUB_HIDDEN_TIMEOUT_QUIET/g' \
-        /etc/default/grub
+    sed -ie 's/^GRUB_HIDDEN_TIMEOUT_QUIET/#GRUB_HIDDEN_TIMEOUT_QUIET/g' /etc/default/grub
     # sed -ie 's/^GRUB_TIMEOUT=.*$/GRUB_TIMEOUT=-1/g' /etc/default/grub
     sed -ie 's/^.*GRUB_TERMINAL=.*$/GRUB_TERMINAL=console/g' /etc/default/grub
     sed -ie 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/g' /etc/default/grub
@@ -338,13 +347,28 @@ function store_cloud_settings {
 
     targetpath="$1"
 
-    cat > $targetpath << EOF
+    if grep "iface eth0 inet dhcp" /etc/network/interfaces; then
+        # eth0's IP is assigned with DHCP
+        cat > $targetpath << EOF
+ADDRESS=$(ifconfig eth0 | grep "inet " | awk '{print $2}' | cut -d":" -f2)
+NETMASK=$(ifconfig eth0 | grep "Mask" | cut -d":" -f4)
+GATEWAY=$(route | grep default | awk '{print $2}')
+MACADDRESS=$(ifconfig eth0 | sed -ne 's/.*HWaddr \(.*\)$/\1/p' | tr -d " ")
+NAMESERVERS=$(cat /etc/resolv.conf | grep nameserver | cut -d " " -f 2 | sort | uniq | tr '\n' , | sed -e 's/,$//g')
+
+EOF
+
+    else
+        cat > $targetpath << EOF
 ADDRESS=$(grep -m 1 "address" /etc/network/interfaces | sed -e 's,^ *,,g' | cut -d " " -f 2)
 NETMASK=$(grep -m 1 "netmask" /etc/network/interfaces | sed -e 's,^ *,,g' | cut -d " " -f 2)
 GATEWAY=$(grep -m 1 "gateway" /etc/network/interfaces | sed -e 's,^ *,,g' | cut -d " " -f 2)
 MACADDRESS=$(ifconfig eth0 | sed -ne 's/.*HWaddr \(.*\)$/\1/p' | tr -d " ")
 NAMESERVERS=$(cat /etc/resolv.conf | grep nameserver | cut -d " " -f 2 | sort | uniq | tr '\n' , | sed -e 's/,$//g')
+
 EOF
+
+    fi
 }
 
 function store_authorized_keys {
@@ -491,6 +515,9 @@ function configure_networking {
         xe vm-param-set name-label="$APPLIANCE_NAME" uuid=$VM
         xe vm-param-set VCPUs-max=6 uuid=$VM
         xe vm-param-set VCPUs-at-startup=6 uuid=$VM
+        if [ -f /mnt/ubuntu/root/$FLAG_FILE_INTERNAL ]; then
+            xe vm-memory-limits-set dynamic-max=10240000000 dynamic-min=10240000000 static-max=10240000000 static-min=10240000000 name-label="$APPLIANCE_NAME"
+        fi
         APP_IMPORTED_NOW="true"
     fi
     DNS_ADDRESSES=$(echo "$NAMESERVERS" | sed -e "s/,/ /g")
@@ -520,8 +547,7 @@ function configure_networking {
 
     # Create vifs for the appliance
     xe vif-create vm-uuid=$VM network-uuid=$HOST_INT_NET device=0
-    xe vif-create vm-uuid=$VM network-uuid=$ORIGINAL_MGT_NET mac=$MACADDRESS \
-        device=1
+    xe vif-create vm-uuid=$VM network-uuid=$ORIGINAL_MGT_NET mac=$MACADDRESS device=1
     xe vif-create vm-uuid=$VM network-uuid=$NEW_MGT_NET device=2
 
     xe vm-start uuid=$VM
@@ -539,8 +565,7 @@ function configure_networking {
         DOMID=$(xe vm-param-get param-name=dom-id uuid=$VM)
 
         # Authenticate temporary key to appliance
-        xenstore-write /local/domain/$DOMID/authorized_keys/$DOMZERO_USER \
-            "$(cat /root/dom0key.pub)"
+        xenstore-write /local/domain/$DOMID/authorized_keys/$DOMZERO_USER "$(cat /root/dom0key.pub)"
         xenstore-chmod -u /local/domain/$DOMID/authorized_keys/$DOMZERO_USER r$DOMID
 
         while ! echo "true" | bash_on_appliance; do

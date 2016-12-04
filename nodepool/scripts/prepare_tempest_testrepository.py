@@ -15,6 +15,7 @@
 # under the License.
 
 import os
+import shutil
 import sys
 
 from subunit2sql.db import api
@@ -36,15 +37,24 @@ else:
 def main():
     shell.parse_args([])
     shell.CONF.set_override('connection', DB_URI, group='database')
-    session = api.get_session()
-    run_ids = api.get_recent_successful_runs(num_runs=10,
-                                             session=session)
-    session.close()
+
     preseed_path = os.path.join(TEMPEST_PATH, 'preseed-streams')
     os.mkdir(preseed_path)
-    for run in run_ids:
-        with open(os.path.join(preseed_path, run + '.subunit'), 'w') as fd:
-            write_subunit.sql2subunit(run, fd)
+    try:
+        session = api.get_session()
+        run_ids = api.get_recent_successful_runs(num_runs=10,
+                                                 session=session)
+        session.close()
+        for run in run_ids:
+            with open(os.path.join(preseed_path, run + '.subunit'), 'w') as fd:
+                write_subunit.sql2subunit(run, fd)
+    except:
+        # copy the static preseed files if failed to get preseeds from logstash
+        src_dir = "/opt/nodepool-scripts/"
+        for file in os.listdir(src_dir):
+            if file.endswith(".subunit"):
+                file_path = os.path.join(src_dir, file)
+                shutil.copy(file_path, preseed_path)
 
 if __name__ == '__main__':
     main()

@@ -22,6 +22,7 @@ esac
 log_begin_msg "Resize started"
 touch /etc/mtab
 
+e2fsck -p /dev/xvda1
 tune2fs -O ^has_journal /dev/xvda1
 e2fsck -fp /dev/xvda1
 resize2fs /dev/xvda1 4G

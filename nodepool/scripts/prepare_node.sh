@@ -30,8 +30,21 @@ fi
 
 echo $HOSTNAME > /tmp/image-hostname.txt
 sudo mv /tmp/image-hostname.txt /etc/image-hostname.txt
+sudo sed -i 's/us.archive.ubuntu.com/mirror.pnl.gov/g' /etc/apt/sources.list
 
-if [ ! -f /etc/redhat-release ]; then
+# HP Cloud centos6 images currently require an update to the
+# certificates file before they can connect to common services such as
+# fedora mirror for EPEL over https
+if [ -f /etc/redhat-release ]; then
+    if grep -q 'CentOS release 6' /etc/redhat-release; then
+        # chicken-and-egg ... hp cloud image has EPEL installed, but
+        # we can't connect to it...
+        # Note 'epel*' will match 0 or more repositories named epel,
+        # so it will work regardless of whether epel is actually
+        # installed.
+        sudo yum --disablerepo=epel* update -y ca-certificates
+    fi
+else
     # Cloud provider apt repos break us - so stop using them
     LSBDISTID=$(lsb_release -is)
     LSBDISTCODENAME=$(lsb_release -cs)
@@ -88,7 +101,19 @@ if [ -f /usr/bin/yum ]; then
     sudo yum -y install wget
 fi
 wget https://git.openstack.org/cgit/openstack-infra/system-config/plain/install_puppet.sh
+# workaround:
+# As there is lib files upgraded for upstart when running install_puppet.sh,
+# it will restart upstart/init; but there is prolem with the restart and it
+# will cause install_puppet.sh hanging when it tries to restart some upstart
+# services e.g. "restart ssh". See Ubuntu bug# "bug/1492691" for details.
+# This workaround is to cheat the package upgrade to be under chroot env so
+# that it won't restart upstart/init.
+sudo cp -p /usr/bin/ischroot /usr/bin/ischroot.bak
+sudo sh -c 'echo "exit 0" > /usr/bin/ischroot'
 sudo bash -xe install_puppet.sh
+sudo cp -p /usr/bin/ischroot.bak /usr/bin/ischroot
+# end of workaround
+#sudo bash -xe install_puppet.sh
 
 sudo git clone --depth=1 $GIT_BASE/openstack-infra/system-config.git \
     /root/system-config
@@ -96,8 +121,7 @@ sudo /bin/bash /root/system-config/install_modules.sh
 
 set +e
 if [ -z "$NODEPOOL_SSH_KEY" ] ; then
-    sudo puppet apply --detailed-exitcodes --color=false \
-        --modulepath=/root/system-config/modules:/etc/puppet/modules \
+    sudo puppet apply --detailed-exitcodes --modulepath=/root/system-config/modules:/etc/puppet/modules \
         -e "class {'openstack_project::single_use_slave':
                     sudo => $SUDO,
                     thin => $THIN,
@@ -105,8 +129,7 @@ if [ -z "$NODEPOOL_SSH_KEY" ] ; then
             }"
     PUPPET_RET_CODE=$?
 else
-    sudo puppet apply --detailed-exitcodes --color=false \
-        --modulepath=/root/system-config/modules:/etc/puppet/modules \
+    sudo puppet apply --detailed-exitcodes --modulepath=/root/system-config/modules:/etc/puppet/modules \
         -e "class {'openstack_project::single_use_slave':
                     install_users => false,
                     sudo => $SUDO,
@@ -154,15 +177,6 @@ echo 'nameserver 127.0.0.1' > /etc/resolv.conf
 exit 0
 EOF
 
-# hpcloud has started mounting ephemeral /dev/vdb at /mnt.
-# devstack-gate wants to partition the ephemeral disk, add some swap
-# and mount it at /opt.  get rid of the mount.
-#
-# note this comes down from the cloud-init metadata; which we setup to
-# ignore below.
-sudo sed -i '/^\/dev\/vdb/d' /etc/fstab
-
-
 # Make all cloud-init data sources match rackspace- only attempt to look
 # at ConfigDrive, not at metadata service. This is not needed if there
 # is no cloud-init
@@ -171,9 +185,6 @@ sudo dd of=/etc/cloud/cloud.cfg.d/95_real_datasources.cfg <<EOF
 datasource_list: [ ConfigDrive, None ]
 EOF
 fi
-
-# reset cloud-init
-sudo rm -rf /var/lib/cloud/instances
 
 sudo bash -c "echo 'include: /etc/unbound/forwarding.conf' >> /etc/unbound/unbound.conf"
 if [ -e /etc/init.d/unbound ] ; then
@@ -234,8 +245,5 @@ sudo -H virtualenv /usr/zuul-swift-logs-env
 sudo -H /usr/zuul-swift-logs-env/bin/pip install python-magic argparse \
     requests glob2
 
-# Create a virtualenv for os-testr (which contains subunit2html)
-# this is in /usr instead of /usr/loca/ due to this bug on precise:
-# https://bugs.launchpad.net/ubuntu/+source/python2.7/+bug/839588
-sudo -H virtualenv /usr/os-testr-env
-sudo -H /usr/os-testr-env/bin/pip install os-testr
+sync
+sleep 5

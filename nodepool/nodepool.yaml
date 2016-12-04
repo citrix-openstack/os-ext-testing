@@ -4,91 +4,121 @@ images-dir: /opt/nodepool_dib
 
 cron:
   cleanup: '*/1 * * * *'
-  check: '*/15 * * * *'
-# TODO: Please choose a random hour for nodepool image updates.
-# This will help reduce the load on upstream git farms & mirros where all 3rd
-# party ci systems start building images at the same time.
-# Doing so is easy, run the following command and replace image-update string
-# with the results:
-#   echo "0 $((RANDOM%23+1)) * * *"
-# Example:
-#   root@jenkins:~# echo "0 $((RANDOM%23+1)) * * *"
-#   0 16 * * *
-# This references the hour of the day when images will be built.
-  image-update: '0 11 * * *'
+  image-update: '25 2 * * *'
 
 zmq-publishers:
   - tcp://localhost:8888
 
 gearman-servers:
-  - host: 127.0.0.1
+  - host: localhost
 
 labels:
-  - name: ds-xen
-    image: ds-xen
+  - name: ds-xenserver
+    image: ds-xenserver
+    min-ready: 3
+    providers:
+      - name: rax-iad-ds-xs-nodepool
+
+  - name: int-ds-xenserver
+    image: int-ds-xenserver
+    min-ready: 3
+    providers:
+      - name: int-ds-xs-nodepool
+
+  - name: int-ds-xenserver-2
+    image: int-ds-xenserver-2
     min-ready: 1
     providers:
-      - name: rax-iad
+      - name: int-ds-xs-nodepool-2
 
 providers:
-  - name: rax-iad
+  - name: rax-iad-ds-xs-nodepool
     cloud: rax
-    region-name: 'IAD'
-    service-type: 'compute'
-    service-name: 'cloudServersOpenStack'
-    boot-timeout: 600
-    max-servers: 5
-    rate: 10.0
-    keypair: 'xenproject-nodepool'
-    template-hostname: '{image.name}-{timestamp}.template.xen.org'
+    auth-url: 'https://identity.api.rackspacecloud.com/v2.0/'
+    #auth-url: '$OS_AUTH_URL'
+    boot-timeout: 60
+    max-servers: 25
+    keypair: ds-xs-nodepool-103ac04e-36ce
+    #keypair: $NODEPOOL_KEYPAIR_NAME
     images:
-      - name: ds-xen
-        # This is the image name to use found in this provider's `glance image-list`
-        base-image: 'Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM)'
+      - name: ds-xenserver
+        base-image: '62df001e-87ee-407c-b042-6f4e13f5d7e1'
         min-ram: 8192
         name-filter: 'Performance'
-        # This is the script that will be used to prepare the image
-        setup: prepare_node_devstack_xen.sh
-        #Set the public key part only of the jenkin's key (no whitespace) to the NODEPOOL_SSH_KEY environment variable in order to
-        #inject it into the image's jenkins user .ssh/authorized_keys
-        #This key will be used to log in and setup jenkins on the target VM
+        install: 'install_xenserver.sh'
+        install-poll-interval: 10
+        install-poll-count: 80
+        install-done-stamp: /var/run/xenserver.ready
+        launch-poll-interval: 10
+        launch-poll-count: 40
+        launch-done-stamp: /var/run/xenserver.ready
+        wait-for-shutoff-before-snapshot: true
+        shutoff-poll-count: 60
+        shutoff-poll-interval: 10
+        setup: 'prepare_node_xenserver.sh'
         private-key: '/home/nodepool/.ssh/id_rsa'
-        config-drive: true
-        meta:
-            xenapi_use_agent: 'false'
-#  - name: rax-ord
-#    cloud: rax
-#    region-name: 'ORD'
-#    username: '<%= provider_username %>'
-#    password: '<%= provider_password %>'
-#    project-id: '874240'
-#    auth-url: 'https://identity.api.rackspacecloud.com/v2.0/'
-#    boot-timeout: 600
-#    max-servers: 5
-#    rate: 10.0
-#    keypair: 'xenproject-nodepool'
-#    template-hostname: '{image.name}-{timestamp}.template.xen.org'
-#    images:
-#      - name: ds-xen
-#        # This is the image name to use found in this provider's `glance image-list`
-#        base-image: 'Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM)'
-#        min-ram: 8192
-#        name-filter: 'Performance'
-#        # This is the script that will be used to prepare the image
-#        setup: prepare_node_devstack_xen.sh
-#        #Set the public key part only of the jenkin's key (no whitespace) to the NODEPOOL_SSH_KEY environment variable in order to
-#        #inject it into the image's jenkins user .ssh/authorized_keys
-#        #This key will be used to log in and setup jenkins on the target VM
-#        private-key: '/home/nodepool/.ssh/id_rsa'
-#        config-drive: true
-#        meta:
-#            xenapi_use_agent: 'false'
 
+  - name: int-ds-xs-nodepool
+    cloud: ci-cloud-1
+    auth-url: 'http://10.71.16.3:5000/v2.0'
+    boot-timeout: 120
+    max-servers: 10
+    keypair: ds-xs-nodepool
+    pool: 'admin_floating_net'
+    ipv6-preferred: False
+    networks: 
+        - name: 'admin_internal_net'
+          public: False
+    images:
+      - name: int-ds-xenserver
+        #base-image: 'CI-RAX-13.04-DHCP'
+        base-image: '82d5f52a-f5c5-4945-a704-9dfcb22f2cd2'
+        min-ram: 8192
+        name-filter: 'nodepool-12-40-4'
+        install: 'install_xenserver_2.sh'
+        install-poll-interval: 10
+        install-poll-count: 800
+        install-done-stamp: /var/run/xenserver.ready
+        launch-poll-interval: 10
+        launch-poll-count: 40
+        launch-done-stamp: /var/run/xenserver.ready
+        wait-for-shutoff-before-snapshot: true
+        shutoff-poll-count: 60
+        shutoff-poll-interval: 10
+        setup: 'prepare_node_xenserver.sh'
+        private-key: '/home/nodepool/.ssh/id_rsa'
+
+  - name: int-ds-xs-nodepool-2
+    cloud: ci-cloud-2
+    auth-url: 'http://10.62.133.5:5000/v2.0'
+    boot-timeout: 120
+    max-servers: 2
+    keypair: ds-xs-nodepool
+    pool: 'admin_floating_net'
+    networks: 
+        - name: 'admin_internal_net'
+          public: False
+    ipv6-preferred: False
+    #networks: 
+    #    - name: 'ExternalNet'
+    #      public: True
+    images:
+      - name: int-ds-xenserver-2
+        base-image: 'CI-RAX-13.04-DHCP'
+        min-ram: 8192
+        name-filter: 'nodepool'
+        install: 'install_xenserver_2.sh'
+        install-poll-interval: 10
+        install-poll-count: 800
+        install-done-stamp: /var/run/xenserver.ready
+        launch-poll-interval: 10
+        launch-poll-count: 40
+        launch-done-stamp: /var/run/xenserver.ready
+        wait-for-shutoff-before-snapshot: true
+        shutoff-poll-count: 60
+        shutoff-poll-interval: 10
+        setup: 'prepare_node_xenserver.sh'
+        private-key: '/home/nodepool/.ssh/id_rsa'
 
 targets:
   - name: jenkins1
-#    jenkins:
-#      url: 'http://localhost:8080/'
-#      user: '<%= jenkins_api_user %>'
-#      apikey: '<%= jenkins_api_key %>'
-#      credentials-id: '<%= jenkins_credentials_id %>'
