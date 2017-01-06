@@ -172,8 +172,8 @@ projects:
 
   - name: openstack/fuel-plugin-xenserver
     check-fuel-plugin-xenserver:
-      - check-fuel-xenserver-plugin
-      - check-fuel-xenserver-6.5-plugin
+      - check-fuel-plugin-xenserver-7.0
+      - check-fuel-plugin-xenserver-6.5
 
   - name: openstack/nova
     check:

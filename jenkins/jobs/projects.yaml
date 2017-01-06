@@ -11,13 +11,15 @@
             node: 'ds-xenserver'
 
 - project:
-    name: fuel-xenserver-plugin-ci
+    name: fuel-plugin-xenserver-ci
     github-org: openstack-dev
     vendor: citrix
     node: fuel-xenserver
 
     jobs:
-        - check-fuel-xenserver-plugin:
+        - check-fuel-plugin-xenserver-7.0:
             node: 'fuel-xenserver'
-        - check-fuel-xenserver-6.5-plugin:
+            xenserver_version: 7.0
+        - check-fuel-plugin-xenserver-6.5:
             node: 'fuel-xenserver-65'
+            xenserver_version: 6.5
