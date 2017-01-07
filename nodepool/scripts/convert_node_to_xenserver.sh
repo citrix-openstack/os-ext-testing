@@ -516,7 +516,8 @@ function configure_networking {
         xe vm-param-set VCPUs-max=6 uuid=$VM
         xe vm-param-set VCPUs-at-startup=6 uuid=$VM
         if [ -f /mnt/ubuntu/root/$FLAG_FILE_INTERNAL ]; then
-            xe vm-memory-limits-set dynamic-max=10240000000 dynamic-min=10240000000 static-max=10240000000 static-min=10240000000 name-label="$APPLIANCE_NAME"
+            MEM_SIZE=$((10240 + 300))MiB
+            xe vm-memory-limits-set dynamic-max=${MEM_SIZE} dynamic-min=${MEM_SIZE} static-max=${MEM_SIZE} static-min=${MEM_SIZE} name-label="$APPLIANCE_NAME"
         fi
         APP_IMPORTED_NOW="true"
     fi

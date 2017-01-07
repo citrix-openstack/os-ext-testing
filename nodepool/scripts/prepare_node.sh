@@ -30,7 +30,7 @@ fi
 
 echo $HOSTNAME > /tmp/image-hostname.txt
 sudo mv /tmp/image-hostname.txt /etc/image-hostname.txt
-sudo sed -i 's/us.archive.ubuntu.com/mirror.pnl.gov/g' /etc/apt/sources.list
+#sudo sed -i 's/us.archive.ubuntu.com/mirror.pnl.gov/g' /etc/apt/sources.list
 
 # HP Cloud centos6 images currently require an update to the
 # certificates file before they can connect to common services such as
@@ -52,46 +52,46 @@ else
     sudo dd of=/etc/apt/sources.list <<EOF
 # See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
 # newer versions of the distribution.
-deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME main restricted
-deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME main restricted
+deb http://mirror.atlantic.net/ubuntu/ trusty main restricted
+deb-src http://mirror.atlantic.net/ubuntu/ trusty main restricted
 
 ## Major bug fix updates produced after the final release of the
 ## distribution.
-deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates main restricted
-deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates main restricted
+deb http://mirror.atlantic.net/ubuntu/ trusty-updates main restricted
+deb-src http://mirror.atlantic.net/ubuntu/ trusty-updates main restricted
 
 ## N.B. software from this repository is ENTIRELY UNSUPPORTED by the Ubuntu
 ## team. Also, please note that software in universe WILL NOT receive any
 ## review or updates from the Ubuntu security team.
-deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME universe
-deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME universe
-deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates universe
-deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates universe
+deb http://mirror.atlantic.net/ubuntu/ trusty universe
+deb-src http://mirror.atlantic.net/ubuntu/ trusty universe
+deb http://mirror.atlantic.net/ubuntu/ trusty-updates universe
+deb-src http://mirror.atlantic.net/ubuntu/ trusty-updates universe
 
 ## N.B. software from this repository is ENTIRELY UNSUPPORTED by the Ubuntu
 ## team, and may not be under a free licence. Please satisfy yourself as to
 ## your rights to use the software. Also, please note that software in
 ## multiverse WILL NOT receive any review or updates from the Ubuntu
 ## security team.
-deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME multiverse
-deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME multiverse
-deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates multiverse
-deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates multiverse
+deb http://mirror.atlantic.net/ubuntu/ trusty multiverse
+deb-src http://mirror.atlantic.net/ubuntu/ trusty multiverse
+deb http://mirror.atlantic.net/ubuntu/ trusty-updates multiverse
+deb-src http://mirror.atlantic.net/ubuntu/ trusty-updates multiverse
 
 ## N.B. software from this repository may not have been tested as
 ## extensively as that contained in the main release, although it includes
 ## newer versions of some applications which may provide useful features.
 ## Also, please note that software in backports WILL NOT receive any review
 ## or updates from the Ubuntu security team.
-deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-backports main restricted universe multiverse
-deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-backports main restricted universe multiverse
+deb http://mirror.atlantic.net/ubuntu/ trusty-backports main restricted universe multiverse
+deb-src http://mirror.atlantic.net/ubuntu/ trusty-backports main restricted universe multiverse
 
-deb http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security main restricted
-deb-src http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security main restricted
-deb http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security universe
-deb-src http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security universe
-deb http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security multiverse
-deb-src http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security multiverse
+deb http://mirror.atlantic.net/ubuntu/ trusty-security main restricted
+deb-src http://mirror.atlantic.net/ubuntu/ trusty-security main restricted
+deb http://mirror.atlantic.net/ubuntu/ trusty-security universe
+deb-src http://mirror.atlantic.net/ubuntu/ trusty-security universe
+deb http://mirror.atlantic.net/ubuntu/ trusty-security multiverse
+deb-src http://mirror.atlantic.net/ubuntu/ trusty-security multiverse
 EOF
     fi
 fi

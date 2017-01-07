@@ -43,6 +43,7 @@ elif [ -f /usr/bin/apt-get ]; then
         sudo DEBIAN_FRONTEND=noninteractive apt-get \
             --option "Dpkg::Options::=--force-confold" \
             --assume-yes install build-essential python-dev libssl-dev libffi-dev \
+            systemd-shim \
             python-software-properties linux-headers-virtual linux-headers-`uname -r`
     fi
 else
