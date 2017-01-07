@@ -6,20 +6,16 @@
 
     jobs:
         - dsvm-tempest-nova-network:
-            node: 'int-ds-xenserver'
+            node: 'rax-iad-devstack || citrix-lon-devstack || citrix-mia-devstack'
         - dsvm-tempest-neutron-network:
-            node: 'ds-xenserver'
-
-- project:
-    name: fuel-plugin-xenserver-ci
-    github-org: openstack-dev
-    vendor: citrix
-    node: fuel-xenserver
-
-    jobs:
+            node: 'rax-iad-devstack || citrix-lon-devstack || citrix-mia-devstack'
         - check-fuel-plugin-xenserver-7.0:
             node: 'fuel-xenserver'
             xenserver_version: 7.0
         - check-fuel-plugin-xenserver-6.5:
             node: 'fuel-xenserver-65'
             xenserver_version: 6.5
+        - check-coverage:
+            node: 'citrix-lon-coverage || citrix-mia-devstack'
+        - check-zuul-layout-update:
+            node: 'coverage'

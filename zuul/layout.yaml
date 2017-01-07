@@ -3,6 +3,16 @@ includes:
   - python-file: openstack_functions.py
 
 pipelines:
+  - name: post    
+    description: This pipeline runs jobs that operate after each change is merged.
+    manager: IndependentPipelineManager
+    source: gerrit
+    precedence: low
+    trigger:
+    gerrit:
+    - event: ref-updated
+    ref: ^(?!refs/).*$
+
   - name: check
     description: Newly uploaded patchsets enter this pipeline to receive an initial +/-1 Verified vote from Jenkins.
     failure-message: "Build failed.  To recheck use 'xenserver: recheck'.  For 3rd party ci contact info: https://wiki.openstack.org/wiki/ThirdPartySystems"
@@ -208,6 +218,10 @@ projects:
       - dsvm-tempest-nova-network
       - dsvm-tempest-neutron-network
 
+  - name: openstack-infra/project-config
+    post:
+      - propose-project-config-update
+
   # Start for Other pojects #
   - name: openstack-dev/bashate
   - name: openstack-dev/ci-sandbox
@@ -268,7 +282,6 @@ projects:
   - name: openstack-infra/openstackid-resources
   - name: openstack-infra/openstackweb
   - name: openstack-infra/os-loganalyze
-  - name: openstack-infra/project-config
   - name: openstack-infra/project-config-example
   - name: openstack-infra/publications
   - name: openstack-infra/puppet-accessbot

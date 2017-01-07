@@ -13,56 +13,37 @@ gearman-servers:
   - host: localhost
 
 labels:
-  - name: ds-xenserver
-    image: ds-xenserver
+  - name: rax-iad-devstack
+    image: devstack
     min-ready: 3
     providers:
-      - name: rax-iad-ds-xs-nodepool
+      - name: rax-iad-nodepool
 
-  - name: int-ds-xenserver
-    image: int-ds-xenserver
+  - name: citrix-lon-devstack
+    image: devstack
     min-ready: 3
     providers:
-      - name: int-ds-xs-nodepool
+      - name: citrix-lon-nodepool
 
-  - name: int-ds-xenserver-2
-    image: int-ds-xenserver-2
+  - name: citrix-lon-coverage
+    image: coverage
     min-ready: 1
+    #ready-script: setup_coverage.sh
     providers:
-      - name: int-ds-xs-nodepool-2
+      - name: citrix-lon-nodepool
+
+  - name: citrix-mia-devstack
+    image: devstack
+    min-ready: 4
+    providers:
+      - name: citrix-mia-nodepool
 
 providers:
-  - name: rax-iad-ds-xs-nodepool
-    cloud: rax
-    auth-url: 'https://identity.api.rackspacecloud.com/v2.0/'
-    #auth-url: '$OS_AUTH_URL'
-    boot-timeout: 60
-    max-servers: 25
-    keypair: ds-xs-nodepool-103ac04e-36ce
-    #keypair: $NODEPOOL_KEYPAIR_NAME
-    images:
-      - name: ds-xenserver
-        base-image: '62df001e-87ee-407c-b042-6f4e13f5d7e1'
-        min-ram: 8192
-        name-filter: 'Performance'
-        install: 'install_xenserver.sh'
-        install-poll-interval: 10
-        install-poll-count: 80
-        install-done-stamp: /var/run/xenserver.ready
-        launch-poll-interval: 10
-        launch-poll-count: 40
-        launch-done-stamp: /var/run/xenserver.ready
-        wait-for-shutoff-before-snapshot: true
-        shutoff-poll-count: 60
-        shutoff-poll-interval: 10
-        setup: 'prepare_node_xenserver.sh'
-        private-key: '/home/nodepool/.ssh/id_rsa'
-
-  - name: int-ds-xs-nodepool
-    cloud: ci-cloud-1
+  - name: citrix-lon-nodepool
+    cloud: citrix-cloud-lon
     auth-url: 'http://10.71.16.3:5000/v2.0'
     boot-timeout: 120
-    max-servers: 10
+    max-servers: 9
     keypair: ds-xs-nodepool
     pool: 'admin_floating_net'
     ipv6-preferred: False
@@ -70,11 +51,10 @@ providers:
         - name: 'admin_internal_net'
           public: False
     images:
-      - name: int-ds-xenserver
-        #base-image: 'CI-RAX-13.04-DHCP'
-        base-image: '82d5f52a-f5c5-4945-a704-9dfcb22f2cd2'
-        min-ram: 8192
-        name-filter: 'nodepool-12-40-4'
+      - name: devstack
+        base-image: 'CI-RAX-13.04-DHCP'
+        min-ram: 12800
+        name-filter: 'nodepool-'
         install: 'install_xenserver_2.sh'
         install-poll-interval: 10
         install-poll-count: 800
@@ -87,12 +67,28 @@ providers:
         shutoff-poll-interval: 10
         setup: 'prepare_node_xenserver.sh'
         private-key: '/home/nodepool/.ssh/id_rsa'
+      - name: coverage
+        base-image: 'Image-coverage'
+        #base-image: 'Ubuntu-Xenial-HVM'
+        min-ram: 4096
+        name-filter: 'nodepool-4-60-4'
+        #install: 'install_coverage_node.sh'
+        #install-poll-interval: 10
+        #install-poll-count: 800
+        #install-done-stamp: /var/run/coverage.ready
+        launch-poll-interval: 10
+        launch-poll-count: 40
+        launch-done-stamp: /var/run/coverage_node.ready
+        #wait-for-shutoff-before-snapshot: false
+        setup: 'prepare_coverage_node.sh'
+        #username: root
+        private-key: '/home/nodepool/.ssh/id_rsa'
 
-  - name: int-ds-xs-nodepool-2
-    cloud: ci-cloud-2
+  - name: citrix-mia-nodepool
+    cloud: citrix-cloud-mia
     auth-url: 'http://10.62.133.5:5000/v2.0'
     boot-timeout: 120
-    max-servers: 2
+    max-servers: 7
     keypair: ds-xs-nodepool
     pool: 'admin_floating_net'
     networks: 
@@ -103,13 +99,37 @@ providers:
     #    - name: 'ExternalNet'
     #      public: True
     images:
-      - name: int-ds-xenserver-2
+      - name: devstack
         base-image: 'CI-RAX-13.04-DHCP'
-        min-ram: 8192
-        name-filter: 'nodepool'
+        min-ram: 12800
+        name-filter: 'nodepool-'
         install: 'install_xenserver_2.sh'
         install-poll-interval: 10
         install-poll-count: 800
+        install-done-stamp: /var/run/xenserver.ready
+        launch-poll-interval: 10
+        launch-poll-count: 40
+        launch-done-stamp: /var/run/xenserver.ready
+        wait-for-shutoff-before-snapshot: true
+        shutoff-poll-count: 60
+        shutoff-poll-interval: 10
+        setup: 'prepare_node_xenserver.sh'
+        private-key: '/home/nodepool/.ssh/id_rsa'
+
+  - name: rax-iad-nodepool
+    cloud: rax
+    auth-url: 'https://identity.api.rackspacecloud.com/v2.0/'
+    boot-timeout: 60
+    max-servers: 24
+    keypair: ds-xs-nodepool-103ac04e-36ce
+    images:
+      - name: devstack
+        base-image: '62df001e-87ee-407c-b042-6f4e13f5d7e1'
+        min-ram: 8192
+        name-filter: 'Performance'
+        install: 'install_xenserver.sh'
+        install-poll-interval: 10
+        install-poll-count: 80
         install-done-stamp: /var/run/xenserver.ready
         launch-poll-interval: 10
         launch-poll-count: 40

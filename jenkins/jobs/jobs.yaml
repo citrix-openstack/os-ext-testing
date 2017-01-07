@@ -62,7 +62,6 @@
 
 - job-template:
     name: 'dsvm-tempest-neutron-network'
-    #name: 'check-citrix-xenserver-neutron'
     node: '{node}'
 
     wrappers:
@@ -143,7 +142,6 @@
           
           #If disable ceilometer by force
           export FORCE_DISABLE_CEILOMETER=""
-          export ZUUL_CHANGES=${ZUUL_CHANGES:-""}
 
           echo "Testing fuel xenserver plugin"
           export FUEL_TEST_LOG_DIR=$WORKSPACE/logs
@@ -174,6 +172,68 @@
       - osci-swift-upload-logs-with-console-plugin:
           upload_source: 'test.log logs'
 
-    publishers:
-      - osci-swift-upload-logs-with-console-plugin:
-          upload_source: 'test.log logs'
+- job:
+    name: 'check-zuul-layout-update'
+    node: {node}
+
+    wrappers:
+      - timeout:
+          timeout: 60  # Timeout in *minutes*
+          fail: true  # A job run that exceeds the timeout will cause a failure
+      - timestamps
+
+    builders:
+      - net-info
+      - shell: |
+          #!/bin/bash -xe
+          set -ex
+          export LC_ALL=C
+          rm -rf projects.yaml
+          wget https://raw.githubusercontent.com/openstack-infra/project-config/master/gerrit/projects.yaml
+          which sort
+          grep '^- project:' projects.yaml > projects.yaml.list.nonsort 
+          /usr/bin/sort projects.yaml.list.nonsort >projects.yaml.list
+          sed -i 's/^- project: /  - name: /g' projects.yaml.list
+          egrep 'openstack-infra/|openstack/|openstack-dev/' projects.yaml.list |\
+          egrep -v  'citrix-openstack/devstack-gate$|openstack/fuel-plugin-xenserver$|openstack/nova$|openstack/neutron$|openstack/os-xenapi$|openstack/tempest$|openstack-dev/devstack$|openstack/xenapi-os-testing$' \
+          >projects.yaml.list.filter
+          
+          ORG_FILE=/etc/zuul/layout/layout.yaml
+          cp $ORG_FILE ./
+          line=$(grep -n '# Start for Other pojects #' layout.yaml | cut -d: -f1)
+          head -$line  layout.yaml > layout.yaml.base
+          
+          cat layout.yaml.base projects.yaml.list.filter >layout.yaml.new
+          if diff layout.yaml.new layout.yaml; then
+              echo 'Zuul layout.yaml is up-to-date!'
+          else
+              if [ "$FORCE_UPDATE" = "True" ]; then
+                  pipelines=$(sudo python /root/ops/zuul/dump-reload-jobs-from-zuul-queue/zuul-pipelines.py  http://10.71.212.50)
+                  for pipeline in $pipelines; do
+                      sudo python /root/ops/zuul/dump-reload-jobs-from-zuul-queue/zuul-changes.py http://10.71.212.50 $pipeline >$pipeline.sh
+                  done
+                  sudo cp $ORG_FILE $ORG_FILE.$$
+                  sudo cp layout.yaml.new $ORG_FILE
+                  sudo service zuul stop; sudo service zuul-merger stop;
+                  sudo service zuul start; sudo service zuul-merger start;
+                  if [ "$RELOAD_JOBS" = "True" ]; then
+                      for pipeline in $pipelines; do
+                          sudo bash $pipeline.sh
+                      done
+                  fi
+              else
+                  echo 'Note: need update zuul layout.yaml'
+                  exit 1
+              fi
+          fi
+
+- job:
+    name: propose-project-config-update
+    node: proposal
+
+    builders:
+      - shell: |
+          #!/bin/bash -xe
+          wget https://raw.githubusercontent.com/citrix-openstack/os-ext-testing/XenServerExtCI/tools/propose_projects_yaml_update.sh
+          chmod +x propose_projects_yaml_update.sh
+          ./propose_projects_yaml_update.sh
