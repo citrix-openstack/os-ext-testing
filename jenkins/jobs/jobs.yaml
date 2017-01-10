@@ -1,5 +1,5 @@
 - job-template:
-    name: 'dsvm-tempest-xen'
+    name: 'dsvm-tempest-nova-network'
     node: '{node}'
 
     wrappers:
@@ -10,48 +10,230 @@
 
     builders:
       - net-info
-      - devstack-checkout
       - shell: |
           #!/bin/bash -xe
+          set +xe
+          #########################
+          sudo  sed -i '1i\192.168.33.2 localhost.localdomain' /etc/hosts
+          cd /opt/git/openstack-infra/devstack-gate
+          sudo /usr/bin/git remote update
+          sudo /usr/bin/git checkout origin/master
+          cd -
+          
+          set -xe
 
-          function pre_test_hook {{
-              echo "Install thirdparty libraries"
-
-              # Install libvirt here to ensure it is
-              # not replaced devstack
-              sudo dpkg -i /opt/nodepool-scripts/*.deb
-              sudo apt-get install -y -f --fix-missing
-          }}
-
-          function cleanup_host_hook {{
-              echo "Copying custom logs"
-
-              # Xen logs
-              if [ -d /var/log/xen ]; then
-                  sudo cp -r /var/log/xen $BASE/logs/
-              fi
-          }}
-
-          export -f pre_test_hook
-          export -f cleanup_host_hook
-
-          if [ -z $ZUUL_PROJECT ]; then
-              export ZUUL_PROJECT=openstack-dev/sandbox
+          if [ -e /home/jenkins/xenapi-os-testing ]
+          then
+              rm -rf /home/jenkins/xenapi-os-testing
           fi
-          if [ -z $ZUUL_BRANCH ]; then
-              export ZUUL_BRANCH=master
+          export ZUUL_URL=https://review.openstack.org/p
+
+          
+          #####################################################################################################
+          /usr/bin/git clone https://github.com/openstack/xenapi-os-testing.git /home/jenkins/xenapi-os-testing
+          if [ "$ZUUL_PROJECT" = "openstack/xenapi-os-testing" ]
+          then
+              cd /home/jenkins/xenapi-os-testing
+              /usr/bin/git fetch $ZUUL_URL/openstack/xenapi-os-testing $ZUUL_REF
+              /usr/bin/git checkout FETCH_HEAD
+              cd -
           fi
-          export PYTHONUNBUFFERED=true
-          export DEVSTACK_GATE_TEMPEST=1
-          export DEVSTACK_GATE_VIRT_DRIVER=libvirt
-          export DEVSTACK_GATE_LIBVIRT_TYPE=xen
-          export DEVSTACK_GATE_TIMEOUT=180
-          export DEVSTACK_GATE_TEMPEST_REGEX='(?!.*\[.*\bslow\b.*\]|.*test_volume_boot_pattern|.*test_shelve_volume_backed_instance)(^tempest\.(api|scenario|thirdparty))'
-          export RE_EXEC=true
-          cp devstack-gate/devstack-vm-gate-wrap.sh ./safe-devstack-vm-gate-wrap.sh
-          ./safe-devstack-vm-gate-wrap.sh
+          #####################################################################################################
+          # disable n-novnc
+          sudo sed -i '/function pre_test_hook/a sudo sed -i -e "s/n-novnc, //g" /opt/stack/new/devstack-gate/features.yaml' /home/jenkins/xenapi-os-testing/run_tests.sh
+            
+          sudo sed -i 's/DEVSTACK_GATE_BRANCH="master"/DEVSTACK_GATE_BRANCH="rebaseToResolveTempestRunError"/' /home/jenkins/xenapi-os-testing/run_tests.sh
+
+          PYTHONUNBUFFERED=true DEVSTACK_GATE_TEMPEST=1 DEVSTACK_GATE_TEMPEST_FULL=1 \
+          DEVSTACK_GATE_VIRT_DRIVER=xenapi DEVSTACK_GATE_TIMEOUT=180 APPLIANCE_NAME=devstack \
+          /home/jenkins/xenapi-os-testing/run_tests.sh 2>&1  | tee /home/jenkins/run_tests.log
+
+          if grep -q "Failed" ~/result.txt
+          then
+              exit 137
+          fi
+         
       - link-logs  # In macros.yaml from os-ext-testing
 
     publishers:
+      #- osci-swift-upload-logs:
       - osci-swift-upload-logs-with-console:
-          upload_source: 'logs'
+          upload_source: 'logs logs/run_tests.log'
+
+- job-template:
+    name: 'dsvm-tempest-neutron-network'
+    node: '{node}'
+
+    wrappers:
+      - timeout:
+          timeout: 230  # Timeout in *minutes*
+          fail: true  # A job run that exceeds the timeout will cause a failure
+      - timestamps
+
+    builders:
+      - net-info
+      - shell: |
+          #!/bin/bash -xe
+          set +xe
+          sudo  sed -i '1i\192.168.33.2 localhost.localdomain' /etc/hosts
+          cd /opt/git/openstack-infra/devstack-gate
+          sudo /usr/bin/git remote update
+          sudo /usr/bin/git checkout origin/master
+          cd -
+          
+          set -xe
+
+          if [ -e /home/jenkins/xenapi-os-testing ]
+          then
+              rm -rf /home/jenkins/xenapi-os-testing
+          fi
+          export ZUUL_URL=https://review.openstack.org/p
+          export ZUUL_PROJ_CHANGE=$(echo $ZUUL_CHANGES | tr '^' '\n' | grep $ZUUL_CHANGE)
+          export ZUUL_REF=$(echo $ZUUL_PROJ_CHANGE | cut -d: -f3)
+          /usr/bin/git clone https://github.com/openstack/xenapi-os-testing.git /home/jenkins/xenapi-os-testing
+          if [ "$ZUUL_PROJECT" = "openstack/xenapi-os-testing" ]
+          then
+              cd /home/jenkins/xenapi-os-testing
+              /usr/bin/git fetch https://review.openstack.org/openstack/xenapi-os-testing $ZUUL_REF
+              /usr/bin/git checkout FETCH_HEAD
+              cd -
+          fi
+ 
+          RUN_SHELL=/home/jenkins/xenapi-os-testing/run_tests.sh
+
+
+          sudo sed -i 's/DEVSTACK_GATE_BRANCH="master"/DEVSTACK_GATE_BRANCH="rebaseToResolveTempestRunError"/' /home/jenkins/xenapi-os-testing/run_tests.sh
+          # disable n-novnc
+          sudo sed -i '/function pre_test_hook/a sudo sed -i -e "s/n-novnc, //g" /opt/stack/new/devstack-gate/features.yaml' /home/jenkins/xenapi-os-testing/run_tests.sh
+          
+          
+          PYTHONUNBUFFERED=true DEVSTACK_GATE_TEMPEST=1 DEVSTACK_GATE_TEMPEST_FULL=1 \
+          DEVSTACK_GATE_VIRT_DRIVER=xenapi BUILD_TIMEOUT=24000000 APPLIANCE_NAME=devstack \
+          DEVSTACK_GATE_NEUTRON=1 \
+          /home/jenkins/xenapi-os-testing/run_tests.sh 2>&1  | tee /home/jenkins/run_tests.log
+
+          if grep -q "Failed" ~/result.txt
+          then
+              exit 137
+          fi
+         
+      - link-logs  # In macros.yaml from os-ext-testing
+
+    publishers:
+      #- osci-swift-upload-logs:
+      - osci-swift-upload-logs-with-console:
+          upload_source: 'logs logs/run_tests.log'
+
+- job-template:
+    name: 'check-fuel-plugin-xenserver-{xenserver_version}'
+    node: '{node}'
+
+    wrappers:
+      - timeout:
+          timeout: 185  # Timeout in *minutes*
+          fail: true  # A job run that exceeds the timeout will cause a failure
+      - timestamps
+
+    builders:
+      #- net-info
+      - shell: |
+          #!/bin/bash -xe
+          env
+          
+          #If disable ceilometer by force
+          export FORCE_DISABLE_CEILOMETER=""
+
+          echo "Testing fuel xenserver plugin"
+          export FUEL_TEST_LOG_DIR=$WORKSPACE/logs
+          LOG=$WORKSPACE/test.log
+          rm -rf $WORKSPACE
+          mkdir -p $WORKSPACE
+          mkdir -p $FUEL_TEST_LOG_DIR
+          cd $WORKSPACE
+          git clone https://github.com/citrix-openstack/qa -b master
+          cd qa/fuel_test
+          cp localrc.default localrc
+          export XS_HOST=$(hostname | cut -d'-' -f2).xenrt.citrite.net
+          export FM_MNT="10.71.77.230:/data/exports"
+          export FM_PWD="r00tme"
+          export ZUUL_URL="http://10.71.212.50/p"
+          export IXE_NFS="10.62.16.21:/openstack"
+          export IXE_ISO="ipxe_20160809.iso"
+          export FUEL_TEST_SUCCESS=$WORKSPACE/fuel_test_sucess
+          rm -f $FUEL_TEST_SUCCESS
+ 
+          ./fuel_test.sh 2>&1| tee -a $LOG
+          
+          if [ ! -f $FUEL_TEST_SUCCESS ]; then
+              exit 137
+          fi
+
+    publishers:
+      - osci-swift-upload-logs-with-console-plugin:
+          upload_source: 'test.log logs'
+
+- job:
+    name: 'check-zuul-layout-update'
+    node: {node}
+
+    wrappers:
+      - timeout:
+          timeout: 60  # Timeout in *minutes*
+          fail: true  # A job run that exceeds the timeout will cause a failure
+      - timestamps
+
+    builders:
+      - net-info
+      - shell: |
+          #!/bin/bash -xe
+          set -ex
+          export LC_ALL=C
+          rm -rf projects.yaml
+          wget https://raw.githubusercontent.com/openstack-infra/project-config/master/gerrit/projects.yaml
+          which sort
+          grep '^- project:' projects.yaml > projects.yaml.list.nonsort 
+          /usr/bin/sort projects.yaml.list.nonsort >projects.yaml.list
+          sed -i 's/^- project: /  - name: /g' projects.yaml.list
+          egrep 'openstack-infra/|openstack/|openstack-dev/' projects.yaml.list |\
+          egrep -v  'citrix-openstack/devstack-gate$|openstack/fuel-plugin-xenserver$|openstack/nova$|openstack/neutron$|openstack/os-xenapi$|openstack/tempest$|openstack-dev/devstack$|openstack/xenapi-os-testing$' \
+          >projects.yaml.list.filter
+          
+          ORG_FILE=/etc/zuul/layout/layout.yaml
+          cp $ORG_FILE ./
+          line=$(grep -n '# Start for Other pojects #' layout.yaml | cut -d: -f1)
+          head -$line  layout.yaml > layout.yaml.base
+          
+          cat layout.yaml.base projects.yaml.list.filter >layout.yaml.new
+          if diff layout.yaml.new layout.yaml; then
+              echo 'Zuul layout.yaml is up-to-date!'
+          else
+              if [ "$FORCE_UPDATE" = "True" ]; then
+                  pipelines=$(sudo python /root/ops/zuul/dump-reload-jobs-from-zuul-queue/zuul-pipelines.py  http://10.71.212.50)
+                  for pipeline in $pipelines; do
+                      sudo python /root/ops/zuul/dump-reload-jobs-from-zuul-queue/zuul-changes.py http://10.71.212.50 $pipeline >$pipeline.sh
+                  done
+                  sudo cp $ORG_FILE $ORG_FILE.$$
+                  sudo cp layout.yaml.new $ORG_FILE
+                  sudo service zuul stop; sudo service zuul-merger stop;
+                  sudo service zuul start; sudo service zuul-merger start;
+                  if [ "$RELOAD_JOBS" = "True" ]; then
+                      for pipeline in $pipelines; do
+                          sudo bash $pipeline.sh
+                      done
+                  fi
+              else
+                  echo 'Note: need update zuul layout.yaml'
+                  exit 1
+              fi
+          fi
+
+- job:
+    name: propose-project-config-update
+    node: proposal
+
+    builders:
+      - shell: |
+          #!/bin/bash -xe
+          wget https://raw.githubusercontent.com/citrix-openstack/os-ext-testing/XenServerExtCI/tools/propose_projects_yaml_update.sh
+          chmod +x propose_projects_yaml_update.sh
+          ./propose_projects_yaml_update.sh

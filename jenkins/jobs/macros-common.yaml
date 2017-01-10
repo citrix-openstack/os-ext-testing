@@ -57,7 +57,8 @@
           echo "Triggered by: https://review.openstack.org/$ZUUL_CHANGE patchset $ZUUL_PATCHSET"
 
           # TODO: Update this link to point to your log server
-          echo "Detailed logs: http://logs.openstack.xenproject.org/$LOG_PATH/"
+          #echo "Detailed logs: http://logs.openstack.xenproject.org/$LOG_PATH/"
+          echo "Detailed logs: http://dd6b71949550285df7dc-dda4e480e005aaa13ec303551d2d8155.r49.cf1.rackcdn.com/$LOG_PATH/"
 
 - publisher:
     name: console-log
@@ -97,23 +98,47 @@
 - builder:
     name: osci-swift-upload-logs-with-console
     builders:
-      - shell: "/usr/local/jenkins/slave_scripts/grab_console_log.sh"
+      #- shell: "/usr/local/jenkins/slave_scripts/grab_console_log.sh"
       - shell: |
           #!/bin/sh
-          virtualenv osci-env
-          . osci-env/bin/activate
-          git clone https://github.com/citrix-openstack/openstack-citrix-ci openstack-citrix-ci
-          # https://urllib3.readthedocs.org/en/latest/security.html#insecureplatformwarning
-          export PYTHONWARNINGS="ignore:A true SSLContext object is not"
-          echo export PYTHONWARNINGS="$PYTHONWARNINGS"
-          pip install -r openstack-citrix-ci/requirements.txt
-          pip install -e openstack-citrix-ci
-          # CA bundle in 2.5.2 is broken
-          pip install --upgrade requests>2.5.2
-          sudo mkdir -p /etc/osci/
-          sudo cp /opt/nodepool-scripts/osci.config /etc/osci/osci.config
-          osci-upload /tmp/console.html {upload_source} $LOG_PATH
+          ls -l logs logs/run_tests.log
+          virtualenv swift-uploader-env
+          . swift-uploader-env/bin/activate
+          git clone https://github.com/citrix-openstack/swift-uploader.git swift-uploader
+          sudo chmod -R 0777 ~/.ccache/
+          #sudo chmod -R 0777 /home/jenkins/.ccache/
+          pip install -r swift-uploader/requirements.txt
+          swift-uploader/swiftuploader/upload.py -r DFW --password $PASSWD -c CILogs /var/log/perf/ logs logs/run_tests.log $LOG_PATH
+          echo "Detailed logs: http://dd6b71949550285df7dc-dda4e480e005aaa13ec303551d2d8155.r49.cf1.rackcdn.com/$LOG_PATH/"
 
+- builder:
+    name: osci-swift-upload-logs-with-console-plugin
+    builders:
+      #- shell: "/usr/local/jenkins/slave_scripts/grab_console_log.sh"
+      - shell: |
+          #!/bin/sh
+          ls -l test.log logs
+          virtualenv swift-uploader-env
+          . swift-uploader-env/bin/activate
+          git clone https://github.com/citrix-openstack/swift-uploader.git swift-uploader
+          sudo chmod -R 0777 ~/.ccache/
+          #sudo chmod -R 0777 /home/jenkins/.ccache/
+          pip install -r swift-uploader/requirements.txt
+          swift-uploader/swiftuploader/upload.py -r DFW --password $PASSWD -c CILogs test.log logs $LOG_PATH
+          echo "Detailed logs: http://dd6b71949550285df7dc-dda4e480e005aaa13ec303551d2d8155.r49.cf1.rackcdn.com/$LOG_PATH/"
+
+- builder:
+    name: osci-swift-upload-logs
+    builders:
+      - shell: |
+          #!/bin/sh
+          ls -l {upload_source}
+          virtualenv swift-uploader-env
+          . swift-uploader-env/bin/activate
+          git clone https://github.com/citrix-openstack/swift-uploader.git swift-uploader
+          sudo chmod 0777 /home/jenkins/.ccache/
+          pip install -r swift-uploader/requirements.txt
+          swift-uploader/swiftuploader/upload.py -r DFW --password $PASSWD -c CILogs {upload_source} $LOG_PATH
 
 - publisher:
     name: osci-swift-upload-logs-with-console
@@ -121,6 +146,19 @@
       - postbuildscript:
           builders:
             - osci-swift-upload-logs-with-console:
+                upload_source: '{upload_source}'
+          # These flags really mean only if on * when
+          # checked. When both set to false the post script
+          # should run on every job regardless of status.
+          onfailure: False
+          onsuccess: False
+
+- publisher:
+    name: osci-swift-upload-logs-with-console-plugin
+    publishers:
+      - postbuildscript:
+          builders:
+            - osci-swift-upload-logs-with-console-plugin:
                 upload_source: '{upload_source}'
           # These flags really mean only if on * when
           # checked. When both set to false the post script

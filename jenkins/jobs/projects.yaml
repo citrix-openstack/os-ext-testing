@@ -1,10 +1,21 @@
 - project:
-    name: sandbox
+    name: citrix-xenserver-ci
     github-org: openstack-dev
     node: master
-    vendor: XenProject
+    vendor: citrix
 
     jobs:
-        - noop-check-communication
-        - dsvm-tempest-xen:
-            node: 'ds-xen'
+        - dsvm-tempest-nova-network:
+            node: 'rax-iad-devstack || citrix-lon-devstack || citrix-mia-devstack'
+        - dsvm-tempest-neutron-network:
+            node: 'rax-iad-devstack || citrix-lon-devstack || citrix-mia-devstack'
+        - check-fuel-plugin-xenserver-7.0:
+            node: 'fuel-xenserver'
+            xenserver_version: 7.0
+        - check-fuel-plugin-xenserver-6.5:
+            node: 'fuel-xenserver-65'
+            xenserver_version: 6.5
+        - check-coverage:
+            node: 'citrix-lon-coverage || citrix-mia-devstack'
+        - check-zuul-layout-update:
+            node: 'coverage'

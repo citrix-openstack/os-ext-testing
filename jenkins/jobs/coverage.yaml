@@ -1,0 +1,65 @@
+
+- job:
+    name: 'check-coverage'
+    node: {node}
+
+    wrappers:
+      - build-timeout:
+          timeout: 60
+      - timestamps
+
+    builders:
+      - shell: |
+          #!/bin/bash -eux
+
+          export ZUUL_REF=${ZUUL_REF:-"refs/changes/55/394355/1"}
+          export ZUUL_CHANGE=${ZUUL_CHANGE:-"394355"}
+          
+          export WORKSPACE=${WORKSPACE:-"/root/workspace/Coverage"}
+          export REPO_URL=${REPO_URL:-"https://git.openstack.org"}
+          export REPO_BRANCH=${ZUUL_BRANCH:-"master"}
+          export FETCH_URL=${ZUUL_URL:-"https://review.openstack.org/p/"}
+          export ZUUL_PROJECT=${ZUUL_PROJECT:-"openstack/os-xenapi"}
+          export LOGS="$WORKSPACE/$ZUUL_CHANGE"_LOGS
+          export LOG="$WORKSPACE/$ZUUL_CHANGE.log"
+          
+          # Prerequisites for centos core
+          # yum install epel-release -y
+          # yum groupinstall 'Development Tools' -y
+          # yum install python-pip git postgresql postgresql-devel python-devel openssl-devel jre cloud-init -y
+          # pip install tox
+          
+          # Prerequisites for ubuntu
+          # apt-get update
+          # apt-get install python-pip git postgresql libpq-dev python-dev build-essential postgresql-server-dev-all default-jre openssl cloud-init -y
+          # pip install tox
+          id
+          
+          
+          #virtualenv coverage
+          #. coverage/bin/activate
+          
+          sudo pip install -U git+https://github.com/citrix-openstack/git-coverage
+          
+          cd "$WORKSPACE"
+          if [[ -d "$ZUUL_CHANGE" ]]; then
+              rm -rf "$ZUUL_CHANGE"
+          fi
+          
+          git clone "${REPO_URL}/$ZUUL_PROJECT" -b "${REPO_BRANCH}" --depth 1 "$ZUUL_CHANGE"
+          #git clone "${FETCH_URL}/$ZUUL_PROJECT" -b "${REPO_BRANCH}" --depth 1 "$ZUUL_CHANGE"
+          cd "$ZUUL_CHANGE"
+          #git fetch "${REPO_URL}/$ZUUL_PROJECT" "$ZUUL_REF"
+          git fetch "${FETCH_URL}$ZUUL_PROJECT" "$ZUUL_REF"
+          git checkout FETCH_HEAD
+          git checkout -b "$ZUUL_REF"
+          
+          mkdir -p "$LOGS"
+          sudo tox -ecover 2>&1| tee -a $LOG
+          sudo coverage combine
+          
+          set -o pipefail
+          git coverage HEAD^ 2>&1| tee -a "$LOGS/git-coverage.log"
+          SUCCESS=$?
+          
+          exit $SUCCESS

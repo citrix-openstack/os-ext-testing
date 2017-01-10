@@ -18,50 +18,65 @@
 
 source /etc/nodepool/provider
 
-# Generate the AFS Slug from the host system.
-source /usr/local/jenkins/slave_scripts/afs-slug.sh
+NODEPOOL_PYPI_MIRROR=${NODEPOOL_PYPI_MIRROR:-http://pypi.$NODEPOOL_REGION.openstack.org/simple}
 
-NODEPOOL_MIRROR_HOST=${NODEPOOL_MIRROR_HOST:-mirror.$NODEPOOL_REGION.$NODEPOOL_CLOUD.openstack.org}
-NODEPOOL_MIRROR_HOST=$(echo $NODEPOOL_MIRROR_HOST|tr '[:upper:]' '[:lower:]')
-NODEPOOL_PYPI_MIRROR=${NODEPOOL_PYPI_MIRROR:-http://$NODEPOOL_MIRROR_HOST/pypi/simple}
-NODEPOOL_WHEEL_MIRROR=${NODEPOOL_WHEEL_MIRROR:-http://$NODEPOOL_MIRROR_HOST/wheel/$AFS_SLUG}
-NODEPOOL_UBUNTU_MIRROR=${NODEPOOL_UBUNTU_MIRROR:-http://$NODEPOOL_MIRROR_HOST/ubuntu}
-
-cat >/tmp/pip.conf <<EOF
-[global]
-timeout = 60
-index-url = $NODEPOOL_PYPI_MIRROR
-trusted-host = $NODEPOOL_MIRROR_HOST
-extra-index-url = $NODEPOOL_WHEEL_MIRROR
-EOF
-sudo mv /tmp/pip.conf /etc/pip.conf
+sudo sed -i -e "s,^index-url = .*,index-url = $NODEPOOL_PYPI_MIRROR," /etc/pip.conf
 
 cat >/home/jenkins/.pydistutils.cfg <<EOF
 [easy_install]
 index_url = $NODEPOOL_PYPI_MIRROR
-allow_hosts = *.openstack.org
 EOF
 
 # Double check that when the node is made ready it is able
 # to resolve names against DNS.
 host git.openstack.org
-host $NODEPOOL_MIRROR_HOST
+host pypi.${NODEPOOL_REGION}.openstack.org
 
 LSBDISTID=$(lsb_release -is)
 LSBDISTCODENAME=$(lsb_release -cs)
 if [ "$LSBDISTID" == "Ubuntu" ] ; then
-    sudo dd of=/etc/apt/sources.list <<EOF
-deb $NODEPOOL_UBUNTU_MIRROR $LSBDISTCODENAME main universe
-deb $NODEPOOL_UBUNTU_MIRROR $LSBDISTCODENAME-updates main universe
-deb $NODEPOOL_UBUNTU_MIRROR $LSBDISTCODENAME-backports main universe
-deb $NODEPOOL_UBUNTU_MIRROR $LSBDISTCODENAME-security main universe
-EOF
-    if [ "$LSBDISTCODENAME" != 'precise' ] ; then
-        # Turn off multi-arch
-        sudo dpkg --remove-architecture i386
-    fi
-    # Turn off checking of GPG signatures
-    sudo dd of=/etc/apt/apt.conf.d/99unauthenticated <<EOF
-APT::Get::AllowUnauthenticated "true";
+sudo dd of=/etc/apt/sources.list <<EOF
+# See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
+# newer versions of the distribution.
+deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME main restricted
+deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME main restricted
+
+## Major bug fix updates produced after the final release of the
+## distribution.
+deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates main restricted
+deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates main restricted
+
+## N.B. software from this repository is ENTIRELY UNSUPPORTED by the Ubuntu
+## team. Also, please note that software in universe WILL NOT receive any
+## review or updates from the Ubuntu security team.
+deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME universe
+deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME universe
+deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates universe
+deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates universe
+
+## N.B. software from this repository is ENTIRELY UNSUPPORTED by the Ubuntu
+## team, and may not be under a free licence. Please satisfy yourself as to
+## your rights to use the software. Also, please note that software in
+## multiverse WILL NOT receive any review or updates from the Ubuntu
+## security team.
+deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME multiverse
+deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME multiverse
+deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates multiverse
+deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates multiverse
+
+## N.B. software from this repository may not have been tested as
+## extensively as that contained in the main release, although it includes
+## newer versions of some applications which may provide useful features.
+## Also, please note that software in backports WILL NOT receive any review
+## or updates from the Ubuntu security team.
+deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-backports main restricted universe multiverse
+deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-backports main restricted universe multiverse
+
+deb http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security main restricted
+deb-src http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security main restricted
+deb http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security universe
+deb-src http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security universe
+deb http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security multiverse
+deb-src http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security multiverse
 EOF
 fi
