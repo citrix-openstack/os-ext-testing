@@ -13,46 +13,34 @@ gearman-servers:
   - host: localhost
 
 labels:
-  - name: rax-iad-devstack
+  - name: dsvm-devstack
     image: devstack
     min-ready: 3
     providers:
       - name: rax-iad-nodepool
-
-  - name: citrix-lon-devstack
-    image: devstack
-    min-ready: 3
-    providers:
       - name: citrix-lon-nodepool
+      - name: citrix-mia-nodepool
 
-  - name: citrix-lon-coverage
+  - name: ubuntu-xenial-coverage
     image: coverage
     min-ready: 1
-    #ready-script: setup_coverage.sh
     providers:
       - name: citrix-lon-nodepool
-
-  - name: citrix-mia-devstack
-    image: devstack
-    min-ready: 4
-    providers:
-      - name: citrix-mia-nodepool
 
 providers:
   - name: citrix-lon-nodepool
-    cloud: citrix-cloud-lon
-    auth-url: 'http://10.71.16.3:5000/v2.0'
+    cloud: citrix-lon
     boot-timeout: 120
-    max-servers: 9
+    max-servers: 10
     keypair: ds-xs-nodepool
     pool: 'admin_floating_net'
-    ipv6-preferred: False
     networks: 
         - name: 'admin_internal_net'
           public: False
     images:
       - name: devstack
         base-image: 'CI-RAX-13.04-DHCP'
+        #base-image: '82d5f52a-f5c5-4945-a704-9dfcb22f2cd2'
         min-ram: 12800
         name-filter: 'nodepool-'
         install: 'install_xenserver_2.sh'
@@ -72,21 +60,14 @@ providers:
         #base-image: 'Ubuntu-Xenial-HVM'
         min-ram: 4096
         name-filter: 'nodepool-4-60-4'
-        #install: 'install_coverage_node.sh'
-        #install-poll-interval: 10
-        #install-poll-count: 800
-        #install-done-stamp: /var/run/coverage.ready
         launch-poll-interval: 10
         launch-poll-count: 40
         launch-done-stamp: /var/run/coverage_node.ready
-        #wait-for-shutoff-before-snapshot: false
         setup: 'prepare_coverage_node.sh'
-        #username: root
         private-key: '/home/nodepool/.ssh/id_rsa'
 
   - name: citrix-mia-nodepool
-    cloud: citrix-cloud-mia
-    auth-url: 'http://10.62.133.5:5000/v2.0'
+    cloud: citrix-mia
     boot-timeout: 120
     max-servers: 7
     keypair: ds-xs-nodepool
@@ -94,10 +75,6 @@ providers:
     networks: 
         - name: 'admin_internal_net'
           public: False
-    ipv6-preferred: False
-    #networks: 
-    #    - name: 'ExternalNet'
-    #      public: True
     images:
       - name: devstack
         base-image: 'CI-RAX-13.04-DHCP'
@@ -118,9 +95,8 @@ providers:
 
   - name: rax-iad-nodepool
     cloud: rax
-    auth-url: 'https://identity.api.rackspacecloud.com/v2.0/'
     boot-timeout: 60
-    max-servers: 24
+    max-servers: 20
     keypair: ds-xs-nodepool-103ac04e-36ce
     images:
       - name: devstack
