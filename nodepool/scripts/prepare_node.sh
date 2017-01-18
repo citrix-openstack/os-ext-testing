@@ -207,6 +207,10 @@ sudo -i python /opt/nodepool-scripts/cache_git_repos.py $GIT_BASE
 # boot (eg when this image is used for testing).
 sudo sed -i 's/ext3/ext4/g' /etc/fstab
 
+# use journal_data_writeback to get better performance.
+sudo tune2fs -o journal_data_writeback /dev/xvda1
+sudo sed -i 's/errors=remount-ro /errors=remount-ro,data=writeback /g' /etc/fstab
+
 # Remove additional sources used to install puppet or special version of pypi.
 # We do this because leaving these sources in place causes every test that
 # does an apt-get update to hit those servers which may not have the uptime
