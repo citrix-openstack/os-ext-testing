@@ -93,6 +93,7 @@ FLAG_FILE_INTERNAL=is_internal
 
 
 function main {
+    echo -e "\n\nStarted at $(date)\n"
     case "$(get_state)" in
         "START")
             sed -ie 's/^ - resizefs$//' /etc/cloud/cloud.cfg
@@ -153,6 +154,7 @@ function main {
             create_done_file_on_appliance
             ;;
     esac
+    echo -e "\n\nEnded at $(date)\n"
 }
 
 function set_state {
@@ -550,6 +552,23 @@ function configure_networking {
     xe vif-create vm-uuid=$VM network-uuid=$HOST_INT_NET device=0
     xe vif-create vm-uuid=$VM network-uuid=$ORIGINAL_MGT_NET mac=$MACADDRESS device=1
     xe vif-create vm-uuid=$VM network-uuid=$NEW_MGT_NET device=2
+
+    # Disable FS journaling.
+    if [ "$APP_IMPORTED_NOW" = "true" ]; then
+        vm_vbd=$(xe vbd-list vm-uuid=$VM --minimal)
+        vm_vdi=$(xe vdi-list vbd-uuids=$vm_vbd --minimal)
+        dom_zero_uuid=$(xe vm-list dom-id=0 --minimal)
+        tmp_vbd=$(xe vbd-create device=0 bootable=false mode=RW type=Disk  vdi-uuid=$vm_vdi vm-uuid=$dom_zero_uuid)
+        xe vbd-plug uuid=$tmp_vbd
+        sr_id=$(xe sr-list name-label="Local storage" --minimal)
+        kpartx -p p -avs  /dev/sm/backend/$sr_id/$vm_vdi
+        tune2fs -l  /dev/mapper/${vm_vdi}p1 | grep "Filesystem features"
+        tune2fs -O ^has_journal /dev/mapper/${vm_vdi}p1
+        tune2fs -l  /dev/mapper/${vm_vdi}p1 | grep "Filesystem features"
+        kpartx -dvs  /dev/sm/backend/$sr_id/$vm_vdi
+        xe vbd-unplug uuid=$tmp_vbd timeout=60
+        xe vbd-destroy uuid=$tmp_vbd
+    fi
 
     xe vm-start uuid=$VM
 

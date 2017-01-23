@@ -203,9 +203,13 @@ dig git.openstack.org
 sudo mkdir -p /opt/git
 sudo -i python /opt/nodepool-scripts/cache_git_repos.py $GIT_BASE
 
+# <wjh>: Don't know why we added this but it works without this and there is
+#        no evidence showing we should mount ext3 as ext4. So let's comment it
+#        out and we can add back if we met issue (then we can add more reasons).
+#
 # We don't always get ext4 from our clouds, mount ext3 as ext4 on the next
 # boot (eg when this image is used for testing).
-sudo sed -i 's/ext3/ext4/g' /etc/fstab
+#sudo sed -i 's/ext3/ext4/g' /etc/fstab
 
 # Remove additional sources used to install puppet or special version of pypi.
 # We do this because leaving these sources in place causes every test that
