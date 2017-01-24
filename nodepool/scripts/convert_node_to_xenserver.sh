@@ -357,6 +357,7 @@ NETMASK=$(ifconfig eth0 | grep "Mask" | cut -d":" -f4)
 GATEWAY=$(route | grep default | awk '{print $2}')
 MACADDRESS=$(ifconfig eth0 | sed -ne 's/.*HWaddr \(.*\)$/\1/p' | tr -d " ")
 NAMESERVERS=$(cat /etc/resolv.conf | grep nameserver | cut -d " " -f 2 | sort | uniq | tr '\n' , | sed -e 's/,$//g')
+HOSTNAME=$(hostname)
 
 EOF
 
@@ -367,6 +368,7 @@ NETMASK=$(grep -m 1 "netmask" /etc/network/interfaces | sed -e 's,^ *,,g' | cut 
 GATEWAY=$(grep -m 1 "gateway" /etc/network/interfaces | sed -e 's,^ *,,g' | cut -d " " -f 2)
 MACADDRESS=$(ifconfig eth0 | sed -ne 's/.*HWaddr \(.*\)$/\1/p' | tr -d " ")
 NAMESERVERS=$(cat /etc/resolv.conf | grep nameserver | cut -d " " -f 2 | sort | uniq | tr '\n' , | sed -e 's/,$//g')
+HOSTNAME=$(hostname)
 
 EOF
 
@@ -640,13 +642,24 @@ EOF
     cat $tmpdomzerokey >> /root/.ssh/authorized_keys
 }
 
+function configure_hostname {
+    local cloud_settings
+
+    cloud_settings="$1"
+
+    if [ -n "$HOSTNAME" ]; then
+        bash_on_appliance "echo $HOSTNAME > /etc/hostname"
+    fi
+}
 function transfer_settings_to_appliance {
-    local network_settings
+    local cloud_settings
 
-    network_settings="$1"
+    cloud_settings="$1"
 
-    configure_networking "$network_settings"
+    configure_networking "$cloud_settings"
     /opt/xensource/libexec/interface-reconfigure rewrite
+
+    configure_hostname "$cloud_settings"
 }
 
 function dump_disk_config {
