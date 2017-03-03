@@ -517,6 +517,9 @@ function configure_networking {
     if [ -z "$VM" ]; then
         VM=$(xe vm-import filename=/mnt/ubuntu/root/staging_vm.xva)
         xe vm-param-set name-label="$APPLIANCE_NAME" uuid=$VM
+        # it must meet: 0 < VCPUs-at-startup <= VCPUs-max,
+        # so let's set VCPUs-at-startup=1 firstly.
+        xe vm-param-set VCPUs-at-startup=1 uuid=$VM
         xe vm-param-set VCPUs-max=6 uuid=$VM
         xe vm-param-set VCPUs-at-startup=6 uuid=$VM
         if [ -f /mnt/ubuntu/root/$FLAG_FILE_INTERNAL ]; then
