@@ -23,6 +23,11 @@ THIN=${THIN:-true}
 ALL_MYSQL_PRIVS=${ALL_MYSQL_PRIVS:-false}
 GIT_BASE=${GIT_BASE:-git://git.openstack.org}
 
+# delete stack user if exists, in case the base XVA has this user already.
+if id stack ; then
+    sudo deluser stack
+fi
+
 sudo hostname $HOSTNAME
 if [ -n "$HOSTNAME" ] && ! grep -q $HOSTNAME /etc/hosts ; then
     echo "127.0.1.1 $HOSTNAME" | sudo tee -a /etc/hosts
@@ -49,49 +54,48 @@ else
     LSBDISTID=$(lsb_release -is)
     LSBDISTCODENAME=$(lsb_release -cs)
     if [ "$LSBDISTID" == "Ubuntu" ] ; then
-    sudo dd of=/etc/apt/sources.list <<EOF
 # See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
 # newer versions of the distribution.
-deb http://mirror.atlantic.net/ubuntu/ trusty main restricted
-deb-src http://mirror.atlantic.net/ubuntu/ trusty main restricted
+deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME main restricted
+deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME main restricted
 
 ## Major bug fix updates produced after the final release of the
 ## distribution.
-deb http://mirror.atlantic.net/ubuntu/ trusty-updates main restricted
-deb-src http://mirror.atlantic.net/ubuntu/ trusty-updates main restricted
+deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates main restricted
+deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates main restricted
 
 ## N.B. software from this repository is ENTIRELY UNSUPPORTED by the Ubuntu
 ## team. Also, please note that software in universe WILL NOT receive any
 ## review or updates from the Ubuntu security team.
-deb http://mirror.atlantic.net/ubuntu/ trusty universe
-deb-src http://mirror.atlantic.net/ubuntu/ trusty universe
-deb http://mirror.atlantic.net/ubuntu/ trusty-updates universe
-deb-src http://mirror.atlantic.net/ubuntu/ trusty-updates universe
+deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME universe
+deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME universe
+deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates universe
+deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates universe
 
 ## N.B. software from this repository is ENTIRELY UNSUPPORTED by the Ubuntu
 ## team, and may not be under a free licence. Please satisfy yourself as to
 ## your rights to use the software. Also, please note that software in
 ## multiverse WILL NOT receive any review or updates from the Ubuntu
 ## security team.
-deb http://mirror.atlantic.net/ubuntu/ trusty multiverse
-deb-src http://mirror.atlantic.net/ubuntu/ trusty multiverse
-deb http://mirror.atlantic.net/ubuntu/ trusty-updates multiverse
-deb-src http://mirror.atlantic.net/ubuntu/ trusty-updates multiverse
+deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME multiverse
+deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME multiverse
+deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates multiverse
+deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-updates multiverse
 
 ## N.B. software from this repository may not have been tested as
 ## extensively as that contained in the main release, although it includes
 ## newer versions of some applications which may provide useful features.
 ## Also, please note that software in backports WILL NOT receive any review
 ## or updates from the Ubuntu security team.
-deb http://mirror.atlantic.net/ubuntu/ trusty-backports main restricted universe multiverse
-deb-src http://mirror.atlantic.net/ubuntu/ trusty-backports main restricted universe multiverse
+deb http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-backports main restricted universe multiverse
+deb-src http://us.archive.ubuntu.com/ubuntu/ $LSBDISTCODENAME-backports main restricted universe multiverse
 
-deb http://mirror.atlantic.net/ubuntu/ trusty-security main restricted
-deb-src http://mirror.atlantic.net/ubuntu/ trusty-security main restricted
-deb http://mirror.atlantic.net/ubuntu/ trusty-security universe
-deb-src http://mirror.atlantic.net/ubuntu/ trusty-security universe
-deb http://mirror.atlantic.net/ubuntu/ trusty-security multiverse
-deb-src http://mirror.atlantic.net/ubuntu/ trusty-security multiverse
+deb http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security main restricted
+deb-src http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security main restricted
+deb http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security universe
+deb-src http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security universe
+deb http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security multiverse
+deb-src http://security.ubuntu.com/ubuntu $LSBDISTCODENAME-security multiverse
 EOF
     fi
 fi
@@ -101,19 +105,23 @@ if [ -f /usr/bin/yum ]; then
     sudo yum -y install wget
 fi
 wget https://git.openstack.org/cgit/openstack-infra/system-config/plain/install_puppet.sh
-# workaround:
-# As there is lib files upgraded for upstart when running install_puppet.sh,
-# it will restart upstart/init; but there is prolem with the restart and it
-# will cause install_puppet.sh hanging when it tries to restart some upstart
-# services e.g. "restart ssh". See Ubuntu bug# "bug/1492691" for details.
-# This workaround is to cheat the package upgrade to be under chroot env so
-# that it won't restart upstart/init.
-sudo cp -p /usr/bin/ischroot /usr/bin/ischroot.bak
-sudo sh -c 'echo "exit 0" > /usr/bin/ischroot'
-sudo bash -xe install_puppet.sh
-sudo cp -p /usr/bin/ischroot.bak /usr/bin/ischroot
-# end of workaround
-#sudo bash -xe install_puppet.sh
+
+if [ "$LSBDISTCODENAME" == "trusty" ]; then
+    # workaround for trusty:
+    # As there is lib files upgraded for upstart when running install_puppet.sh,
+    # it will restart upstart/init; but there is prolem with the restart and it
+    # will cause install_puppet.sh hanging when it tries to restart some upstart
+    # services e.g. "restart ssh". See Ubuntu bug# "bug/1492691" for details.
+    # This workaround is to cheat the package upgrade to be under chroot env so
+    # that it won't restart upstart/init.
+    sudo cp -p /usr/bin/ischroot /usr/bin/ischroot.bak
+    sudo sh -c 'echo "exit 0" > /usr/bin/ischroot'
+    sudo bash -xe install_puppet.sh
+    sudo cp -p /usr/bin/ischroot.bak /usr/bin/ischroot
+    # end of workaround
+else
+    sudo bash -xe install_puppet.sh
+fi
 
 sudo git clone --depth=1 $GIT_BASE/openstack-infra/system-config.git \
     /root/system-config
