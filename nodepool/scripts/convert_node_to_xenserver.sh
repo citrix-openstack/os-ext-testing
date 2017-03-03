@@ -270,7 +270,7 @@ mkdir -p /mnt/ubuntu
 mount /dev/sda1 /mnt/ubuntu
 mkdir -p $(dirname $INSTALL_DIR)
 [ -L $INSTALL_DIR ] || ln -s /mnt/ubuntu${INSTALL_DIR} $INSTALL_DIR
-/bin/bash $THIS_FILE $ADDITIONAL_PARAMETERS >> $LOG_FILE 2>&1
+nohup /bin/bash $THIS_FILE $ADDITIONAL_PARAMETERS >> $LOG_FILE 2>&1 &
 EOF
 }
 
