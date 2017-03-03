@@ -11,6 +11,7 @@ EOF
 
 # Prepare for access via jenkins
 # Consider to use puppet to do the configuration?
+useradd -d /home/jenkins -m jenkins
 mkdir -p /home/jenkins/.ssh
 echo "ssh-rsa ${NODEPOOL_SSH_KEY}" >> /home/jenkins/.ssh/authorized_keys
 chown -R jenkins /home/jenkins

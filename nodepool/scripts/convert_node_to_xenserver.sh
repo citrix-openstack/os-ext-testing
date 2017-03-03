@@ -524,8 +524,10 @@ function configure_networking {
         xe vm-param-set VCPUs-at-startup=6 uuid=$VM
         if [ -f /mnt/ubuntu/root/$FLAG_FILE_INTERNAL ]; then
             MEM_SIZE=$((10240 + 300))MiB
-            xe vm-memory-limits-set dynamic-max=${MEM_SIZE} dynamic-min=${MEM_SIZE} static-max=${MEM_SIZE} static-min=${MEM_SIZE} name-label="$APPLIANCE_NAME"
+        else
+            MEM_SIZE=6GiB
         fi
+        xe vm-memory-limits-set dynamic-max=${MEM_SIZE} dynamic-min=${MEM_SIZE} static-max=${MEM_SIZE} static-min=${MEM_SIZE} name-label="$APPLIANCE_NAME"
         APP_IMPORTED_NOW="true"
     fi
     DNS_ADDRESSES=$(echo "$NAMESERVERS" | sed -e "s/,/ /g")
@@ -636,7 +638,7 @@ EOF
 
     # Update ssh keys and reboot, so settings applied
     {
-        echo "sudo tee /root/.ssh/authorized_keys"
+        echo "sudo mkdir -p /root/.ssh; sudo tee /root/.ssh/authorized_keys"
         cat /root/.ssh/authorized_keys
     } | bash_on_appliance
 
@@ -648,6 +650,8 @@ function configure_hostname {
     local cloud_settings
 
     cloud_settings="$1"
+
+    . $cloud_settings
 
     if [ -n "$HOSTNAME" ]; then
         bash_on_appliance "echo $HOSTNAME > /etc/hostname"

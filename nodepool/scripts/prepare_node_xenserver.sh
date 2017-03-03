@@ -33,6 +33,7 @@ function tsfilter {
 
 set -o pipefail
 tsfilter ./prepare_node_devstack.sh "$HOSTNAME"
+sync
 
 # After the node has been prepared, the hypervisor needs to be halted to make
 # sure that the filesystem is in a consistent state.
