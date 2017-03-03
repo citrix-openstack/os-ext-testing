@@ -640,9 +640,8 @@ EOF
         cat /root/.ssh/authorized_keys
     } | bash_on_appliance
 
-    echo "sudo reboot" | bash_on_appliance
-
     cat $tmpdomzerokey >> /root/.ssh/authorized_keys
+    xe vm-reboot vm=$VM
 }
 
 function configure_hostname {
