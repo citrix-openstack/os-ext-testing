@@ -570,7 +570,7 @@ function configure_networking {
         tune2fs -l  /dev/mapper/${vm_vdi}p1 | grep "Filesystem features"
         tune2fs -O ^has_journal /dev/mapper/${vm_vdi}p1
         tune2fs -l  /dev/mapper/${vm_vdi}p1 | grep "Filesystem features"
-        kpartx -dvs  /dev/sm/backend/$sr_id/$vm_vdi
+        kpartx -p p -dvs  /dev/sm/backend/$sr_id/$vm_vdi
         xe vbd-unplug uuid=$tmp_vbd timeout=60
         xe vbd-destroy uuid=$tmp_vbd
     fi
