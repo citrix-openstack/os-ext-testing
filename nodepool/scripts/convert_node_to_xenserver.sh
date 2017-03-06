@@ -270,7 +270,7 @@ mkdir -p /mnt/ubuntu
 mount /dev/sda1 /mnt/ubuntu
 mkdir -p $(dirname $INSTALL_DIR)
 [ -L $INSTALL_DIR ] || ln -s /mnt/ubuntu${INSTALL_DIR} $INSTALL_DIR
-/bin/bash $THIS_FILE $ADDITIONAL_PARAMETERS >> $LOG_FILE 2>&1
+nohup /bin/bash $THIS_FILE $ADDITIONAL_PARAMETERS >> $LOG_FILE 2>&1 &
 EOF
 }
 
@@ -517,12 +517,17 @@ function configure_networking {
     if [ -z "$VM" ]; then
         VM=$(xe vm-import filename=/mnt/ubuntu/root/staging_vm.xva)
         xe vm-param-set name-label="$APPLIANCE_NAME" uuid=$VM
+        # it must meet: 0 < VCPUs-at-startup <= VCPUs-max,
+        # so let's set VCPUs-at-startup=1 firstly.
+        xe vm-param-set VCPUs-at-startup=1 uuid=$VM
         xe vm-param-set VCPUs-max=6 uuid=$VM
         xe vm-param-set VCPUs-at-startup=6 uuid=$VM
         if [ -f /mnt/ubuntu/root/$FLAG_FILE_INTERNAL ]; then
             MEM_SIZE=$((10240 + 300))MiB
-            xe vm-memory-limits-set dynamic-max=${MEM_SIZE} dynamic-min=${MEM_SIZE} static-max=${MEM_SIZE} static-min=${MEM_SIZE} name-label="$APPLIANCE_NAME"
+        else
+            MEM_SIZE=6GiB
         fi
+        xe vm-memory-limits-set dynamic-max=${MEM_SIZE} dynamic-min=${MEM_SIZE} static-max=${MEM_SIZE} static-min=${MEM_SIZE} name-label="$APPLIANCE_NAME"
         APP_IMPORTED_NOW="true"
     fi
     DNS_ADDRESSES=$(echo "$NAMESERVERS" | sed -e "s/,/ /g")
@@ -567,7 +572,7 @@ function configure_networking {
         tune2fs -l  /dev/mapper/${vm_vdi}p1 | grep "Filesystem features"
         tune2fs -O ^has_journal /dev/mapper/${vm_vdi}p1
         tune2fs -l  /dev/mapper/${vm_vdi}p1 | grep "Filesystem features"
-        kpartx -dvs  /dev/sm/backend/$sr_id/$vm_vdi
+        kpartx -p p -dvs  /dev/sm/backend/$sr_id/$vm_vdi
         xe vbd-unplug uuid=$tmp_vbd timeout=60
         xe vbd-destroy uuid=$tmp_vbd
     fi
@@ -633,19 +638,20 @@ EOF
 
     # Update ssh keys and reboot, so settings applied
     {
-        echo "sudo tee /root/.ssh/authorized_keys"
+        echo "sudo mkdir -p /root/.ssh; sudo tee /root/.ssh/authorized_keys"
         cat /root/.ssh/authorized_keys
     } | bash_on_appliance
 
-    echo "sudo reboot" | bash_on_appliance
-
     cat $tmpdomzerokey >> /root/.ssh/authorized_keys
+    xe vm-reboot vm=$VM
 }
 
 function configure_hostname {
     local cloud_settings
 
     cloud_settings="$1"
+
+    . $cloud_settings
 
     if [ -n "$HOSTNAME" ]; then
         bash_on_appliance "echo $HOSTNAME > /etc/hostname"
