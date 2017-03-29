@@ -654,7 +654,9 @@ function configure_hostname {
     . $cloud_settings
 
     if [ -n "$HOSTNAME" ]; then
-        bash_on_appliance "echo $HOSTNAME > /etc/hostname"
+        {
+            echo "echo $HOSTNAME | sudo tee /etc/hostname; sudo hostname $HOSTNAME"
+        } | bash_on_appliance
     fi
 }
 function transfer_settings_to_appliance {
