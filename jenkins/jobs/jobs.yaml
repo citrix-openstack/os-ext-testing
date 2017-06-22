@@ -19,7 +19,7 @@
           sudo /usr/bin/git remote update
           sudo /usr/bin/git checkout origin/master
           cd -
-          
+
           set -xe
 
           if [ -e /home/jenkins/xenapi-os-testing ]
@@ -28,7 +28,7 @@
           fi
           export ZUUL_URL=https://review.openstack.org/p
 
-          
+
           #####################################################################################################
           /usr/bin/git clone https://github.com/openstack/xenapi-os-testing.git /home/jenkins/xenapi-os-testing
           if [ "$ZUUL_PROJECT" = "openstack/xenapi-os-testing" ]
@@ -41,7 +41,7 @@
           #####################################################################################################
           # disable n-novnc
           sudo sed -i '/function pre_test_hook/a sudo sed -i -e "s/n-novnc, //g" /opt/stack/new/devstack-gate/features.yaml' /home/jenkins/xenapi-os-testing/run_tests.sh
-            
+
           sudo sed -i 's/DEVSTACK_GATE_BRANCH="master"/DEVSTACK_GATE_BRANCH="rebaseToResolveTempestRunError"/' /home/jenkins/xenapi-os-testing/run_tests.sh
 
           PYTHONUNBUFFERED=true DEVSTACK_GATE_TEMPEST=1 DEVSTACK_GATE_TEMPEST_FULL=1 \
@@ -52,7 +52,7 @@
           then
               exit 137
           fi
-         
+
       - link-logs  # In macros.yaml from os-ext-testing
 
     publishers:
@@ -68,6 +68,8 @@
       - timeout:
           timeout: 230  # Timeout in *minutes*
           fail: true  # A job run that exceeds the timeout will cause a failure
+      - dom0_ip:
+          dom0_ip: 192.168.33.2 # Dom0 ip adress
       - timestamps
 
     builders:
@@ -80,7 +82,7 @@
           sudo /usr/bin/git remote update
           sudo /usr/bin/git checkout origin/master
           cd -
-          
+
           set -xe
 
           if [ -e /home/jenkins/xenapi-os-testing ]
@@ -98,15 +100,15 @@
               /usr/bin/git checkout FETCH_HEAD
               cd -
           fi
- 
+
           RUN_SHELL=/home/jenkins/xenapi-os-testing/run_tests.sh
 
 
           sudo sed -i 's/DEVSTACK_GATE_BRANCH="master"/DEVSTACK_GATE_BRANCH="rebaseToResolveTempestRunError"/' /home/jenkins/xenapi-os-testing/run_tests.sh
           # disable n-novnc
           sudo sed -i '/function pre_test_hook/a sudo sed -i -e "s/n-novnc, //g" /opt/stack/new/devstack-gate/features.yaml' /home/jenkins/xenapi-os-testing/run_tests.sh
-          
-          
+
+
           PYTHONUNBUFFERED=true DEVSTACK_GATE_TEMPEST=1 DEVSTACK_GATE_TEMPEST_FULL=1 \
           DEVSTACK_GATE_VIRT_DRIVER=xenapi BUILD_TIMEOUT=24000000 APPLIANCE_NAME=devstack \
           DEVSTACK_GATE_NEUTRON=1 \
@@ -116,7 +118,8 @@
           then
               exit 137
           fi
-         
+
+      - copy-dom0-logs # In macros.yaml from os-ext-testing
       - link-logs  # In macros.yaml from os-ext-testing
 
     publishers:
@@ -139,7 +142,7 @@
       - shell: |
           #!/bin/bash -xe
           env
-          
+
           #If disable ceilometer by force
           export FORCE_DISABLE_CEILOMETER=""
 
@@ -161,9 +164,9 @@
           export IXE_ISO="ipxe_20160809.iso"
           export FUEL_TEST_SUCCESS=$WORKSPACE/fuel_test_sucess
           rm -f $FUEL_TEST_SUCCESS
- 
+
           ./fuel_test.sh 2>&1| tee -a $LOG
-          
+
           if [ ! -f $FUEL_TEST_SUCCESS ]; then
               exit 137
           fi
@@ -191,18 +194,18 @@
           rm -rf projects.yaml
           wget https://raw.githubusercontent.com/openstack-infra/project-config/master/gerrit/projects.yaml
           which sort
-          grep '^- project:' projects.yaml > projects.yaml.list.nonsort 
+          grep '^- project:' projects.yaml > projects.yaml.list.nonsort
           /usr/bin/sort projects.yaml.list.nonsort >projects.yaml.list
           sed -i 's/^- project: /  - name: /g' projects.yaml.list
           egrep 'openstack-infra/|openstack/|openstack-dev/' projects.yaml.list |\
           egrep -v  'citrix-openstack/devstack-gate$|openstack/fuel-plugin-xenserver$|openstack/nova$|openstack/neutron$|openstack/os-xenapi$|openstack/tempest$|openstack-dev/devstack$|openstack/xenapi-os-testing$' \
           >projects.yaml.list.filter
-          
+
           ORG_FILE=/etc/zuul/layout/layout.yaml
           cp $ORG_FILE ./
           line=$(grep -n '# Start for Other pojects #' layout.yaml | cut -d: -f1)
           head -$line  layout.yaml > layout.yaml.base
-          
+
           cat layout.yaml.base projects.yaml.list.filter >layout.yaml.new
           if diff layout.yaml.new layout.yaml; then
               echo 'Zuul layout.yaml is up-to-date!'
