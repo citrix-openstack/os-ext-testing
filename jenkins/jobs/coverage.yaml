@@ -20,8 +20,10 @@
           export REPO_BRANCH=${ZUUL_BRANCH:-"master"}
           export FETCH_URL=${ZUUL_URL:-"https://review.openstack.org/p/"}
           export ZUUL_PROJECT=${ZUUL_PROJECT:-"openstack/os-xenapi"}
-          export LOGS="$WORKSPACE/$ZUUL_CHANGE"_LOGS
-          export LOG="$WORKSPACE/$ZUUL_CHANGE.log"
+          export LOGS="$WORKSPACE/logs"
+          export LOG="$WORKSPACE/test.log"
+          export TOX_LOG="$LOGS/tox-cover.log"
+          export RESULT="$LOGS/TEST_RESULT.txt"
           
           # Prerequisites for centos core
           # yum install epel-release -y
@@ -41,25 +43,45 @@
           
           sudo pip install -U git+https://github.com/citrix-openstack/git-coverage
           
-          cd "$WORKSPACE"
-          if [[ -d "$ZUUL_CHANGE" ]]; then
-              rm -rf "$ZUUL_CHANGE"
-          fi
-          
-          git clone "${REPO_URL}/$ZUUL_PROJECT" -b "${REPO_BRANCH}" --depth 1 "$ZUUL_CHANGE"
-          #git clone "${FETCH_URL}/$ZUUL_PROJECT" -b "${REPO_BRANCH}" --depth 1 "$ZUUL_CHANGE"
-          cd "$ZUUL_CHANGE"
-          #git fetch "${REPO_URL}/$ZUUL_PROJECT" "$ZUUL_REF"
-          git fetch "${FETCH_URL}$ZUUL_PROJECT" "$ZUUL_REF"
-          git checkout FETCH_HEAD
-          git checkout -b "$ZUUL_REF"
-          
           mkdir -p "$LOGS"
-          sudo tox -ecover 2>&1| tee -a $LOG
-          sudo coverage combine
-          
-          set -o pipefail
-          git coverage HEAD^ 2>&1| tee -a "$LOGS/git-coverage.log"
-          SUCCESS=$?
-          
-          exit $SUCCESS
+          touch $RESULT
+
+          (
+            sudo pip install -U git+https://github.com/citrix-openstack/git-coverage
+
+            cd "$WORKSPACE"
+            if [[ -d "$ZUUL_CHANGE" ]]; then
+               sudo rm -rf "$ZUUL_CHANGE"
+            fi
+
+            git clone "${REPO_URL}/$ZUUL_PROJECT" -b "${REPO_BRANCH}" --depth 1 "$ZUUL_CHANGE"
+            cd "$ZUUL_CHANGE"
+            git fetch "${FETCH_URL}$ZUUL_PROJECT" "$ZUUL_REF"
+            git checkout FETCH_HEAD
+            git checkout -b "$ZUUL_REF"
+
+            sudo tox -ecover >$TOX_LOG 2>&1
+
+            # Save html formated coverage result if exists.
+            if [ -e htmlcov ]; then
+                sudo mv htmlcov $LOGS/
+            fi
+
+            echo -e "\n\n*******************************************************"
+            echo -e "Check unit test coverage for this commit."
+            set +e
+            set -o pipefail
+            git coverage HEAD^ 2>&1 | tee -a "$LOGS/git-coverage.log"
+            if [ $? -eq 0 ]; then
+                echo "SUCCESS" | tee -a $RESULT
+            else
+                echo "FAILED" |tee -a $RESULT
+            fi
+
+          ) 2>&1 | tee -a $LOG
+
+          if grep "SUCCESS" $RESULT; then
+              exit 0
+          else
+              exit 137
+          fi
