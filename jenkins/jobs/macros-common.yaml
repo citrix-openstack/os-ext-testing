@@ -60,6 +60,16 @@
           #echo "Detailed logs: http://logs.openstack.xenproject.org/$LOG_PATH/"
           echo "Detailed logs: http://dd6b71949550285df7dc-dda4e480e005aaa13ec303551d2d8155.r49.cf1.rackcdn.com/$LOG_PATH/"
 
+- builder:
+    name: copy-dom0-logs
+    builders:
+      - shell: |
+          #!/bin/sh
+          # make dir on jekins server to save Dom0 logs
+          sudo -u domzero mkdir -p ~domzero/logs
+          sudo -u domzero scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@{dom0_ip}:/var/log/\{messages*,user.log*,SMlog*,xensource.log*\} /home/domzero/logs/
+          sudo -u domzero chmod -R 755 ~domzero/logs
+
 - publisher:
     name: console-log
     publishers:
@@ -108,6 +118,8 @@
           sudo chmod -R 0777 ~/.ccache/
           #sudo chmod -R 0777 /home/jenkins/.ccache/
           pip install -r swift-uploader/requirements.txt
+          mkdir -pm 755 logs/domzero_logs
+          cp ~domzero/logs/* logs/domzero_logs -rf
           swift-uploader/swiftuploader/upload.py -r DFW --password $PASSWD -c CILogs /var/log/perf/ logs logs/run_tests.log $LOG_PATH
           echo "Detailed logs: http://dd6b71949550285df7dc-dda4e480e005aaa13ec303551d2d8155.r49.cf1.rackcdn.com/$LOG_PATH/"
 
