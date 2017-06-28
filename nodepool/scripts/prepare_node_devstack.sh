@@ -23,6 +23,17 @@ export THIN='true'
 TEMPEST_DIR=${TEMPEST_DIR:-/opt/git/openstack/tempest}
 
 ./prepare_node.sh "$HOSTNAME"
+
+# Add the user of jenkins: puppet modules now won't create it by default.
+useradd -d /home/jenkins -m jenkins
+mkdir -p /home/jenkins/.ssh
+echo "ssh-rsa ${NODEPOOL_SSH_KEY}" >> /home/jenkins/.ssh/authorized_keys
+chown -R jenkins /home/jenkins
+cat >/etc/sudoers.d/jenkins-sudo <<EOF
+jenkins ALL=(ALL) NOPASSWD:ALL
+EOF
+chmod 440 /etc/sudoers.d/jenkins-sudo
+
 sudo -u jenkins -i /opt/nodepool-scripts/prepare_devstack.sh "$HOSTNAME"
 
 # Setup venv and install deps for prepare_tempest_testrepository.py
