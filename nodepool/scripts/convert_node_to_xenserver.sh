@@ -127,6 +127,7 @@ function main {
             ;;
         "XENSERVER_FIRSTBOOT")
             wait_for_xapi
+            wait_for_firstboot_done
             forget_networking
             transfer_settings_to_appliance "/root/cloud-settings"
             add_boot_config_for_ubuntu /mnt/ubuntu/boot /boot/
@@ -253,11 +254,17 @@ function print_postinst_file {
     local rclocal
     rclocal="$1"
 
+    # NOTE(jianghuaw): Due to systemd introduced in CentOS 7, the
+    # /etc/rc.d/rc.local not enabled by default, we need make
+    # /etc/rc.d/rc.local executable. This is needed by XS7 and
+    # forwarding release whose Dom0 is CentOS 7. But not side
+    # impact by always +x.
     cat << EOF
 #!/bin/sh
 touch \$1/tmp/postinst.sh.executed
 cp \$1/etc/rc.d/rc.local \$1/etc/rc.d/rc.local.backup
 cat $rclocal >> \$1/etc/rc.d/rc.local
+chmod +x \$1/etc/rc.d/rc.local
 cp /tmp/ramdisk/cloud-settings \$1/root/
 cp /tmp/ramdisk/authorized_keys \$1/root/.ssh/
 EOF
@@ -324,8 +331,8 @@ function generate_xs_installer_grub_config {
 #!/bin/sh
 exec tail -n +3 \$0
 menuentry 'XenServer installer' {
-    multiboot $bootfiles/xen.gz dom0_max_vcpus=1-2 dom0_mem=1024M dom0_mem=max:1024M com1=115200,8n1 console=com1,vga
-    module $bootfiles/vmlinuz xencons=hvc console=tty0 make-ramdisk=/dev/sda1 answerfile=$answerfile install
+    multiboot $bootfiles/xen.gz dom0_max_vcpus=1-2 dom0_mem=2048M dom0_mem=max:2048M com1=115200,8n1 console=com1,vga
+    module $bootfiles/vmlinuz xencons=hvc console=tty0 make-ramdisk=/dev/sda1 answerfile=$answerfile disable-gpt install
     module $bootfiles/install.img
 }
 EOF
@@ -383,10 +390,23 @@ function store_authorized_keys {
     cp /root/.ssh/authorized_keys $1
 }
 
-function wait_for_xapi {
-    while ! [ -e /var/run/xapi_init_complete.cookie ]; do
+function wait_for_firstboot_done {
+    # only check firtboot when systemctl exists.
+    if ! type systemctl 2>/dev/null >&2; then
+        return
+    fi
+    while ! systemctl status xs-firstboot | grep 'code=exited, status=0/SUCCESS' >/dev/null; do
         sleep 1
     done
+}
+
+function wait_for_xapi {
+    XAPI_INIT_COMPLETE_COOKIE=/var/run/xapi_init_complete.cookie
+    while ! [ -e $XAPI_INIT_COMPLETE_COOKIE ]; do
+        sleep 1
+    done
+    # print the timestamp on the init complete flag.
+    ls -l $XAPI_INIT_COMPLETE_COOKIE
 }
 
 function forget_networking {
@@ -420,12 +440,21 @@ function add_boot_config_for_ubuntu {
     cp $kernel $bootfiles/vmlinuz-ubuntu
     cp $initrd $bootfiles/initrd-ubuntu
 
-    cat >> $bootfiles/extlinux.conf << UBUNTU
+    if [ -f $bootfiles/extlinux.conf ]; then
+        cat >> $bootfiles/extlinux.conf << UBUNTU
 label ubuntu
     LINUX $bootfiles/vmlinuz-ubuntu
     APPEND root=/dev/xvda1 ro quiet splash
     INITRD $bootfiles/initrd-ubuntu
 UBUNTU
+    else
+        cat >> $bootfiles/grub/grub.cfg << UBUNTU
+menuentry 'ubuntu' {
+    linux $bootfiles/vmlinuz-ubuntu root=/dev/xvda1 ro quiet splash
+    initrd $bootfiles/initrd-ubuntu
+}
+UBUNTU
+    fi
 }
 
 function start_ubuntu_on_next_boot {
@@ -433,9 +462,13 @@ function start_ubuntu_on_next_boot {
 
     bootfiles="$1"
 
-    sed -ie 's,default xe,default ubuntu,g' $bootfiles/extlinux.conf
+    if [ -f $bootfiles/extlinux.conf ]; then
+        sed -ie 's,default xe,default ubuntu,g' $bootfiles/extlinux.conf
 
-    log_extlinux $bootfiles/extlinux.conf
+        log_extlinux $bootfiles/extlinux.conf
+    else
+        sed -ie 's,set default=0,set default=ubuntu,g' $bootfiles/grub/grub.cfg
+    fi
 }
 
 function start_xenserver_on_next_boot {
@@ -443,9 +476,13 @@ function start_xenserver_on_next_boot {
 
     bootfiles="$1"
 
-    sed -ie 's,default ubuntu,default xe,g' $bootfiles/extlinux.conf
+    if [ -f $bootfiles/extlinux.conf ]; then
+        sed -ie 's,default ubuntu,default xe,g' $bootfiles/extlinux.conf
 
-    log_extlinux $bootfiles/extlinux.conf
+        log_extlinux $bootfiles/extlinux.conf
+    else
+        sed -ie 's,set default=ubuntu,set default=0,g' $bootfiles/grub/grub.cfg
+    fi
 }
 
 function log_extlinux {

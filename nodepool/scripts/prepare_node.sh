@@ -155,15 +155,32 @@ if [ "$PUPPET_RET_CODE" -eq "4" ] || [ "$PUPPET_RET_CODE" -eq "6" ] ; then
 fi
 set -e
 
-# The puppet modules should install unbound.  Set up some nameservers.
+# The puppet modules won't install the following packages anymore. Let's install them.
+# unbound - for DNS service.
+# dnsutils - for DNS utils e.g. dig
+# virtualenv build-essential python-dev linux-headers* - for setting virt env for zuul.
+if [ -f /usr/bin/apt-get ]; then
+    sudo DEBIAN_FRONTEND=noninteractive apt-get \
+            --option "Dpkg::Options::=--force-confold" \
+            --assume-yes install unbound dnsutils \
+            virtualenv build-essential python-dev \
+            linux-headers-virtual linux-headers-`uname -r`
+else
+    echo "Unsupported distro."
+    exit 1
+fi
+
+# Set up some nameservers.
 cat >/tmp/forwarding.conf <<EOF
 forward-zone:
   name: "."
   forward-addr: 8.8.8.8
 EOF
+
 sudo mv /tmp/forwarding.conf /etc/unbound/
 sudo chown root:root /etc/unbound/forwarding.conf
 sudo chmod a+r /etc/unbound/forwarding.conf
+
 # HPCloud has selinux enabled by default, Rackspace apparently not.
 # Regardless, apply the correct context.
 if [ -x /sbin/restorecon ] ; then

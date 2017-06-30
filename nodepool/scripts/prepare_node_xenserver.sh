@@ -37,9 +37,11 @@ sync
 
 # After the node has been prepared, the hypervisor needs to be halted to make
 # sure that the filesystem is in a consistent state.
-sudo -u domzero \
+# Node (jianghuaw): always return true as the halt on XS(e.g. 7.0, 7.1) will
+# result into the ssh closed immediately before the ssh session return normally.
+(sudo -u domzero \
     ssh \
         -o StrictHostKeyChecking=no \
         -o UserKnownHostsFile=/dev/null \
         root@192.168.33.2 \
-            halt -p </dev/null
+            halt -p </dev/null ) || true
