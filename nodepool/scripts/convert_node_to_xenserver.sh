@@ -692,6 +692,9 @@ function configure_hostname {
 
     if [ -n "$HOSTNAME" ]; then
         {
+            # Update hosts to avoid warning when running sudo command:
+            # e.g. sudo: unable to resolve host dsvm-devstack-rax-iad-nodepool-726969
+            echo "sudo sed -i 's/^127.0.1.1.*$/127.0.1.1 '$HOSTNAME'/g' /etc/hosts"
             echo "echo $HOSTNAME | sudo tee /etc/hostname; sudo hostname $HOSTNAME"
         } | bash_on_appliance
     fi
