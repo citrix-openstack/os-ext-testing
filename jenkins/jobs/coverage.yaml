@@ -24,6 +24,8 @@
           export LOG="$WORKSPACE/test.log"
           export TOX_LOG="$LOGS/tox-cover.log"
           export RESULT="$LOGS/TEST_RESULT.txt"
+
+          THRESHOLD_COVERAGE=${THRESHOLD_COVERAGE:-90}
           
           # Prerequisites for centos core
           # yum install epel-release -y
@@ -72,7 +74,13 @@
             set +e
             set -o pipefail
             git coverage HEAD^ 2>&1 | tee -a "$LOGS/git-coverage.log"
-            if [ $? -eq 0 ]; then
+            # check if the coverage% meet the criteria for non-UT source code.
+            lines_added=$(git diff  --numstat HEAD^  | grep -v '/tests/' | awk '{sum += $1} END {print sum}')
+            lines_missed=$(grep "\!\+" $LOGS/git-coverage.log  | wc -l)
+            coverage_percentage=$((100 - lines_missed * 100 / lines_added))
+            echo "Added lines: $lines_added; missed lines: $lines_missed."
+            echo "The coverage threshold is $THRESHOLD_COVERAGE%; actually it's $coverage_percentage%"
+            if [ $coverage_percentage -ge $THRESHOLD_COVERAGE ]; then
                 echo "SUCCESS" | tee -a $RESULT
             else
                 echo "FAILED" |tee -a $RESULT
