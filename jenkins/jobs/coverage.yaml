@@ -1,10 +1,10 @@
 
 - job:
     name: 'check-coverage'
-    node: {node}
+    node: '{node}'
 
     wrappers:
-      - build-timeout:
+      - timeout:
           timeout: 60
       - timestamps
 

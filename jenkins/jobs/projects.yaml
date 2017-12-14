@@ -6,16 +6,14 @@
 
     jobs:
         - dsvm-tempest-nova-network:
-            node: 'rax-iad-devstack || citrix-lon-devstack || citrix-mia-devstack'
+            node: 'dsvm-devstack'
         - dsvm-tempest-neutron-network:
-            node: 'rax-iad-devstack || citrix-lon-devstack || citrix-mia-devstack'
-        - check-fuel-plugin-xenserver-7.0:
+            node: 'dsvm-devstack'
+        - check-fuel-plugin-xenserver-{xenserver_version}:
             node: 'fuel-xenserver'
-            xenserver_version: 7.0
-        - check-fuel-plugin-xenserver-6.5:
+            xenserver_version: '7.0'
+        - check-fuel-plugin-xenserver-{xenserver_version}:
             node: 'fuel-xenserver-65'
-            xenserver_version: 6.5
+            xenserver_version: '6.5'
         - check-coverage:
-            node: 'citrix-lon-coverage || citrix-mia-devstack'
-        - check-zuul-layout-update:
-            node: 'coverage'
+            node: 'ubuntu-xenial-coverage'

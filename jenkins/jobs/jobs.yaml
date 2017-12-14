@@ -68,8 +68,6 @@
       - timeout:
           timeout: 230  # Timeout in *minutes*
           fail: true  # A job run that exceeds the timeout will cause a failure
-      - dom0_ip:
-          dom0_ip: 192.168.33.2 # Dom0 ip adress
       - timestamps
 
     builders:
@@ -119,7 +117,8 @@
               exit 137
           fi
 
-      - copy-dom0-logs # In macros.yaml from os-ext-testing
+      - copy-dom0-logs: # In macros.yaml from os-ext-testing
+          dom0_ip: '192.168.33.2' # Dom0 ip adress
       - link-logs  # In macros.yaml from os-ext-testing
 
     publishers:
@@ -177,7 +176,7 @@
 
 - job:
     name: 'check-zuul-layout-update'
-    node: {node}
+    node: '{node}'
 
     wrappers:
       - timeout:
