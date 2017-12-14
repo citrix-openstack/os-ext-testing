@@ -62,12 +62,13 @@
 
 - builder:
     name: copy-dom0-logs
+    dom0_ip: '{dom0_ip}'
     builders:
       - shell: |
           #!/bin/sh
           # make dir on jekins server to save Dom0 logs
           sudo -u domzero mkdir -p ~domzero/logs
-          sudo -u domzero scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@{dom0_ip}:/var/log/\{messages*,user.log*,SMlog*,xensource.log*\} /home/domzero/logs/
+          sudo -u domzero scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@{dom0_ip}:/var/log/\{{messages*,user.log*,SMlog*,xensource.log*\}} /home/domzero/logs/
           sudo -u domzero chmod -R 755 ~domzero/logs
 
 - publisher:
