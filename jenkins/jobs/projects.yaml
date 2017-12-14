@@ -17,3 +17,5 @@
             xenserver_version: '6.5'
         - check-coverage:
             node: 'ubuntu-xenial-coverage'
+        - test-vgpu:
+            node: 'vgpu'
