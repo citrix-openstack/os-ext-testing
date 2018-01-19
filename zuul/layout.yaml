@@ -16,7 +16,7 @@ pipelines:
         # adds a comment to a review that says "recheck myvendor".
         - event: comment-added
           comment: (?i)^(Patch Set [0-9]+:)?( [\w\\+-]*)*(\n\n)?\s*xenserver:*\s*recheck\s*$
-    
+
     success:
       gerrit:
         verified: 1
@@ -160,6 +160,17 @@ jobs:
     branch: ^master.*$
     voting: false
 
+  - name: test-vgpu
+    files:
+      - ^nova/virt/xenapi/.*$
+      - ^nova/compute/.*$
+      - ^nova/scheduler/.*$
+      - ^nova/api/openstack/placement/.*$
+      - ^os_xenapi/client/.*$
+      - ^os_xenapi/dom0/.*$
+    branch: ^master.*$
+    voting: false
+
 projects:
   #- name: openstack-dev/sandbox
   #  silent:
@@ -181,6 +192,7 @@ projects:
     check:
       - dsvm-tempest-nova-network
       - dsvm-tempest-neutron-network
+      - test-vgpu
     silent:
       ##- dsvm-tempest-neutron-network-internal
       - check-coverage
@@ -194,6 +206,7 @@ projects:
   - name: openstack/os-xenapi
     check:
       - dsvm-tempest-neutron-network
+      - test-vgpu
     check-coverage:
       - check-coverage
 

@@ -1,0 +1,68 @@
+- job:
+    name: 'test-vgpu'
+    node: '{node}'
+
+    wrappers:
+      - timeout:
+          timeout: 40  # Timeout in *minutes*
+          fail: true  # A job run that exceeds the timeout will cause a failure
+      - timestamps
+
+    builders:
+      #- net-info
+      - shell: |
+          #!/bin/bash -eux
+          env
+
+          export ZUUL_CHANGES=${ZUUL_CHANGES:-""}
+          export ZUUL_REF=${ZUUL_REF:-""}
+          export ZUUL_CHANGE=${ZUUL_CHANGE:-""}
+
+          echo "Testing vgpu on xenserver"
+          export VGPU_TEST_LOG_DIR=$WORKSPACE/logs
+          LOG=$WORKSPACE/test.log
+          rm -rf $WORKSPACE
+          mkdir -p $WORKSPACE
+          mkdir -p $VGPU_TEST_LOG_DIR
+          cd $WORKSPACE
+          rm -rf qa
+          git clone https://github.com/citrix-openstack/qa -b master
+          cd $WORKSPACE/qa/
+          ./test_vgpu.sh $ZUUL_REF $ZUUL_CHANGES 2>&1| tee -a $LOG
+
+          if ! grep -q "VGPU create success" $LOG; then
+              exit 137
+          fi
+
+    publishers:
+      - osci-swift-upload-logs-with-console-vgpu:
+          upload_source: 'test.log logs'
+
+- builder:
+    name: osci-swift-upload-logs-with-console-vgpu
+    builders:
+      #- shell: "/usr/local/jenkins/slave_scripts/grab_console_log.sh"
+      - shell: |
+          #!/bin/sh
+          ls -l test.log logs
+          BUILD_TAG=${{BUILD_TAG:-"temp_build"}}
+          LOG_PATH=${{LOG_PATH:-$BUILD_TAG}}
+          virtualenv swift-uploader-env
+          . swift-uploader-env/bin/activate
+          git clone https://github.com/citrix-openstack/swift-uploader.git swift-uploader
+          pip install -r swift-uploader/requirements.txt
+          swift-uploader/swiftuploader/upload.py -r DFW --password $PASSWD -c CILogs test.log logs $LOG_PATH
+          echo "Detailed logs: http://dd6b71949550285df7dc-dda4e480e005aaa13ec303551d2d8155.r49.cf1.rackcdn.com/$LOG_PATH/"
+
+- publisher:
+    name: osci-swift-upload-logs-with-console-vgpu
+    publishers:
+      - postbuildscript:
+          builders:
+            - osci-swift-upload-logs-with-console-vgpu:
+                upload_source: '{upload_source}'
+          # These flags really mean only if on * when
+          # checked. When both set to false the post script
+          # should run on every job regardless of status.
+          onfailure: False
+          onsuccess: False
