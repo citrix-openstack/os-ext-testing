@@ -115,7 +115,10 @@
           ls -l logs logs/run_tests.log
           virtualenv swift-uploader-env
           . swift-uploader-env/bin/activate
+          pip install os_client_config
           git clone https://github.com/citrix-openstack/swift-uploader.git swift-uploader
+          mkdir -p ~/.config/openstack/
+          cp swift-uploader/clouds.yaml ~/.config/openstack/
           sudo chmod -R 0777 ~/.ccache/
           #sudo chmod -R 0777 /home/jenkins/.ccache/
           pip install -r swift-uploader/requirements.txt
@@ -133,7 +136,10 @@
           ls -l test.log logs
           virtualenv swift-uploader-env
           . swift-uploader-env/bin/activate
+          pip install os_client_config
           git clone https://github.com/citrix-openstack/swift-uploader.git swift-uploader
+          mkdir -p ~/.config/openstack/
+          cp swift-uploader/clouds.yaml ~/.config/openstack/
           sudo chmod -R 0777 ~/.ccache/
           #sudo chmod -R 0777 /home/jenkins/.ccache/
           pip install -r swift-uploader/requirements.txt
@@ -148,7 +154,10 @@
           ls -l {upload_source}
           virtualenv swift-uploader-env
           . swift-uploader-env/bin/activate
+          pip install os_client_config
           git clone https://github.com/citrix-openstack/swift-uploader.git swift-uploader
+          mkdir -p ~/.config/openstack/
+          cp swift-uploader/clouds.yaml ~/.config/openstack/
           sudo chmod 0777 /home/jenkins/.ccache/
           pip install -r swift-uploader/requirements.txt
           swift-uploader/swiftuploader/upload.py -r DFW --password $PASSWD -c CILogs {upload_source} $LOG_PATH
