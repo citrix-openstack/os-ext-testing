@@ -115,7 +115,6 @@
           ls -l logs logs/run_tests.log
           virtualenv swift-uploader-env
           . swift-uploader-env/bin/activate
-          pip install os_client_config
           git clone https://github.com/citrix-openstack/swift-uploader.git swift-uploader
           mkdir -p ~/.config/openstack/
           cp swift-uploader/clouds.yaml ~/.config/openstack/
@@ -136,7 +135,6 @@
           ls -l test.log logs
           virtualenv swift-uploader-env
           . swift-uploader-env/bin/activate
-          pip install os_client_config
           git clone https://github.com/citrix-openstack/swift-uploader.git swift-uploader
           mkdir -p ~/.config/openstack/
           cp swift-uploader/clouds.yaml ~/.config/openstack/
@@ -154,7 +152,6 @@
           ls -l {upload_source}
           virtualenv swift-uploader-env
           . swift-uploader-env/bin/activate
-          pip install os_client_config
           git clone https://github.com/citrix-openstack/swift-uploader.git swift-uploader
           mkdir -p ~/.config/openstack/
           cp swift-uploader/clouds.yaml ~/.config/openstack/
