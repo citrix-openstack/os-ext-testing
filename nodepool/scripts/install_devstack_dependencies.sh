@@ -35,7 +35,7 @@ elif [ -f /usr/bin/apt-get ]; then
             --option "Dpkg::Options::=--force-confold" \
             --assume-yes install build-essential python-dev libssl-dev libffi-dev \
             python-software-properties linux-headers-virtual linux-headers-`uname -r` \
-            default-jre iptables
+            default-jre iptables libpcre3-dev
     fi
 else
     echo "Unsupported distro."
