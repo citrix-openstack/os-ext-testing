@@ -22,6 +22,10 @@ SUDO=${SUDO:-true}
 THIN=${THIN:-true}
 ALL_MYSQL_PRIVS=${ALL_MYSQL_PRIVS:-false}
 GIT_BASE=${GIT_BASE:-git://git.openstack.org}
+# By default use 2.5.1 to avoid compatiblity issue:
+# e.g. the version of 2.6.1.dev* introduced dependent package: aiohttp which
+#      requires python >=3.4.2. But at the moment we run python2.7.
+ZUUL_VERSION=${ZUUL_VERSION:-2.5.1}
 
 # delete stack user if exists, in case the base XVA has this user already.
 if id stack ; then
@@ -263,7 +267,7 @@ sudo rm -f /etc/cron.{monthly,weekly,daily,hourly,d}/*
 # Install Zuul into a virtualenv
 # This is in /usr instead of /usr/local due to this bug on precise:
 # https://bugs.launchpad.net/ubuntu/+source/python2.7/+bug/839588
-git clone /opt/git/openstack-infra/zuul /tmp/zuul
+git clone /opt/git/openstack-infra/zuul -b $ZUUL_VERSION /tmp/zuul
 sudo virtualenv /usr/zuul-env
 sudo -H /usr/zuul-env/bin/pip install /tmp/zuul
 sudo rm -fr /tmp/zuul
